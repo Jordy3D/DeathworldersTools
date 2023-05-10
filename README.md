@@ -24,7 +24,7 @@ The userscript that makes use of this data can be installed easily at https://jo
 - [ ] Complete the Table of Contents
 - [ ] Add support for searching and/or filtering the Table of Contents
 - [ ] Fix some errors I saw once with some of the above tweaks that I haven't found again cuz I forgot which chapter they were on
-- [ ] Connect the Table of Contents to the Hijacked pages
+- [x] Connect the Table of Contents to the Hijacked pages
 
 ### Approximate Progress
 | Feature  								| Progress  							|
