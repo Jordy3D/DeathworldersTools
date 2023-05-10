@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.15.0
+// @version      0.15.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -55,7 +55,7 @@
 //          - Fixed incorrect default setting on Keep ++ setting
 //          - Minor fixes related to this update
 // 0.12     - Laid groundwork for displaying non-Deathworlders chapters on Deathworlders.com via URL hijacking
-//              - This already works at https://deathworlders.com/books/#xiu1! 
+//              - This already works at https://deathworlders.com/books/#xiu1! (at time of writing, URL subject to change)
 //          - Unique colours for Good Training The Champions and Salvage
 //          - Shift to hosting Deathworlders data on a new repo
 //          - Notes now supported on tooltips
@@ -1595,11 +1595,6 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
                 // replace <i></i> with HTML
                 p.innerHTML = swapGTLTwithTag(p.innerHTML, 'i');
                 p.innerHTML = swapGTLTwithTag(p.innerHTML, 'b');
-                p.innerHTML = p.innerHTML.replace(/&lt;i&gt;/g, '<i>');
-                p.innerHTML = p.innerHTML.replace(/&lt;\/i&gt;/g, '</i>');
-                // replace <b></b> with HTML
-                p.innerHTML = p.innerHTML.replace(/&lt;b&gt;/g, '<b>');
-                p.innerHTML = p.innerHTML.replace(/&lt;\/b&gt;/g, '</b>');
 
                 // count words to calculate reading time
                 wordCount += paragraph.text.split(' ').length;
