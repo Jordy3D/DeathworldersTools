@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.15.3
+// @version      0.16.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -71,6 +71,8 @@
 //          - Made the page auto-refresh on URL change to allow for the hijacking to work more naturally
 // 0.15     - Added Part support to the hijacked chapters
 //          - Fixed a bug where loaded hijacked chapters would incorrectly display content in < and > (which is used for HTML tags, but they also use it for dialogue """style""")
+// 0.16     - Replaced off-site links with hijacked links where available in the Table of Contents
+//          - Fixed a bug failing to detect hijacked chapters as active
 //
 // ===== End Changelog =====
 
@@ -1404,12 +1406,21 @@ function spawnTableofContents() {
 
             // if the url is offsite, add a class to the chapter
             if (!chapterURL.includes('deathworlders.com')) {
-                chapterLink.classList.add('offsite');
+                // check if the chapter has an alt url
+                if (chapter.alt != null && chapter.alt != "") {
+                    chapterLink.href = chapter.alt;
+                    chapterLink.classList.add('hijack');
 
-                var domain = chapterLink.hostname;
-                domain = domain.replace('www.', '');
-
-                datatp += `Offsite Link: (${domain})\n`
+                    datatp += `Alt URL: ${chapter.alt}\n`;
+                }
+                else
+                {
+                    chapterLink.classList.add('offsite');
+                    var domain = chapterLink.hostname;
+                    domain = domain.replace('www.', '');
+                    
+                    datatp += `Offsite Link: (${domain})\n`
+                }
             }
 
             let chapterNote = chapter.note;
@@ -1426,16 +1437,26 @@ function spawnTableofContents() {
             else
                 chapterLink.innerText = `${chapter.book} ${chapter.number}\n${chapter.name}`;
 
-            if (chapter.url == window.location.href) {
+            if (chapter.url == window.location.href || chapter.alt == window.location.href) {
                 chapterLink.classList.add('bane-toc-active');
 
                 // add a link to the previous chapter based on the current chapter's index
                 let index = chapterJSON["chapters"].indexOf(chapter);
+                let prevChapter = chapterJSON["chapters"][index - 1];
+                prevLink.href = prevChapter.url;
                 if (index > 0) {
-                    let target = isOffsite("deathworlders.com", chapterJSON["chapters"][index - 1].url);
+                    let target = isOffsite("deathworlders.com", prevChapter.url);
                     if (target[0]) {
-                        prevLink.classList.add('offsite');
-                        prevLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                        // if the previous chapter has an alt url, use that instead
+                        if (prevChapter.alt != null && prevChapter.alt != "") {
+                            prevLink.href = prevChapter.alt;
+                            prevLink.classList.add('hijack');
+                        }
+                        else
+                        {
+                            prevLink.classList.add('offsite');
+                            prevLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                        }
                     }
                 }
                 else {
@@ -1444,11 +1465,21 @@ function spawnTableofContents() {
                 }
 
                 // add a link to the next chapter based on the current chapter's index
+                var nextChapter = chapterJSON["chapters"][index + 1];
+                nextLink.href = nextChapter.url;
                 if (index < chapterJSON["chapters"].length - 1) {
-                    let target = isOffsite("deathworlders.com", chapterJSON["chapters"][index + 1].url);
+                    let target = isOffsite("deathworlders.com", nextChapter.url);
                     if (target[0]) {
-                        nextLink.classList.add('offsite');
-                        nextLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                        // if the next chapter has an alt url, use that instead
+                        if (nextChapter.alt != null && nextChapter.alt != "") {
+                            nextLink.href = nextChapter.alt;
+                            nextLink.classList.add('hijack');
+                        }
+                        else
+                        {
+                            nextLink.classList.add('offsite');
+                            nextLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                        }
                     }
                 }
                 else {
@@ -1610,12 +1641,6 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
     }
 }
 
-function swapGTLTwithTag(string, tag) {
-    string = string.replace(`/&lt;${tag}&gt;/g`, `<${tag}>`); 
-    string = string.replace(`/&lt;\/${tag}&gt;/g`, `</${tag}>`);
-    return string;
-}
-
 // ===== HELPER FUNCTIONS =====
 
 function findClassWithinDistance(array, currentIndex, distance, searchClass) {
@@ -1640,6 +1665,12 @@ function findClassWithinDistance(array, currentIndex, distance, searchClass) {
     }
 
     return false;
+}
+
+function swapGTLTwithTag(string, tag) {
+    string = string.replace(`/&lt;${tag}&gt;/g`, `<${tag}>`); 
+    string = string.replace(`/&lt;\/${tag}&gt;/g`, `</${tag}>`);
+    return string;
 }
 
 function isOffsite(home, url) {
