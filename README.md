@@ -29,8 +29,8 @@ The userscript that makes use of this data can be installed easily at https://jo
 ### Approximate Progress
 | Feature  								| Progress  							|
 | ------------------------------------- | ------------------------------------- |
-| Table of Contents (Deathworlders) 	| ![](https://geps.dev/progress/60)  	|
-| Table of Contents (Overall) 			| ![](https://geps.dev/progress/40)  	|
+| Table of Contents (Deathworlders) 	| ![](https://geps.dev/progress/95)  	|
+| Table of Contents (Overall) 			| ![](https://geps.dev/progress/60)  	|
 | Chapter Hijacking			 			| ![](https://geps.dev/progress/5)  	|
 
 

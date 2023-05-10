@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.15.2
+// @version      0.15.3
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -1590,9 +1590,9 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
                 // if class is defined, add it to the element. If there's more than one class, split it by spaces, comma, or period
                 if (paragraph.class) p.classList.add(...paragraph.class.split(/[\s,\.]+/));
                 // add the text to the element, ensuring that HTML tags are parsed as HTML
-                p.innerText = paragraph.text;
+                p.innerHTML = paragraph.text;
 
-                // replace <i></i> with HTML
+                // replace <> and </> text with tags
                 p.innerHTML = swapGTLTwithTag(p.innerHTML, 'i');
                 p.innerHTML = swapGTLTwithTag(p.innerHTML, 'b');
 
