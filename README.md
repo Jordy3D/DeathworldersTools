@@ -26,6 +26,14 @@ The userscript that makes use of this data can be installed easily at https://jo
 - [ ] Fix some errors I saw once with some of the above tweaks that I haven't found again cuz I forgot which chapter they were on
 - [ ] Connect the Table of Contents to the Hijacked pages
 
+### Approximate Progress
+| Feature  								| Progress  							|
+| ------------------------------------- | ------------------------------------- |
+| Table of Contents (Deathworlders) 	| ![](https://geps.dev/progress/60)  	|
+| Table of Contents (Overall) 			| ![](https://geps.dev/progress/40)  	|
+| Chapter Hijacking			 			| ![](https://geps.dev/progress/5)  	|
+
+
 ## Credit
 I do not own their stories, all credit to the individuals who wrote them.  
 Please refer to the link below for source links and credits:  
