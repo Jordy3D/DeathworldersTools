@@ -4,7 +4,7 @@ Some stuff and things for a little web practice I've been doing.
 Will contain """backups""" of stories written by people on the HFY subreddit, among other things.
 
 The `ConvertTXTtoJSON.py` file was just a prototype to automate converting the """backups""" into a new format.  
-The same functionality exists at https://jordy3d.github.io/projects/jsonthing, which is nice.
+A more up-to-date version exists at https://jordy3d.github.io/projects/jsonthing, which is nice.
 
 ## Userscript
 The userscript that makes use of this data can be installed easily at https://jordy3d.github.io/userscripts, or manually copied from https://github.com/Jordy3D/DeathworldersTweaks/blob/main/userscript/Deathworlders.user.js.  
