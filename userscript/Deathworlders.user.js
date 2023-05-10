@@ -70,6 +70,7 @@
 //              - This means that the script shouldn't need regular updates to keep up with the replacement chapters
 //          - Made the page auto-refresh on URL change to allow for the hijacking to work more naturally
 // 0.15     - Added Part support to the hijacked chapters
+//          - Fixed a bug where loaded hijacked chapters would incorrectly display content in < and > (which is used for HTML tags, but they also use it for dialogue """style""")
 //
 // ===== End Changelog =====
 
@@ -171,8 +172,8 @@ function initialize() {
 function checkNewVersion() {
     console.log('Checking for new version of Deathworlders Tweaks');
 
-    // check https://jordy3d.github.io/files/userscripts/js/Deathworlders.user.js for the latest version
-    var url = 'https://jordy3d.github.io/files/userscripts/js/Deathworlders.user.js';
+    // check the userscript file for the latest version
+    var url = 'https://raw.githubusercontent.com/Jordy3D/DeathworldersTweaks/main/userscript/Deathworlders.user.js'
     var request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.onload = function () {
@@ -200,7 +201,6 @@ function checkNewVersion() {
                 sourceLink.target = '_blank';
                 sourceLink.innerHTML = 'Download the latest version here';
                 settingsDiv.appendChild(sourceLink);
-
 
                 // create a new style
                 var style = document.createElement('style');
@@ -1590,7 +1590,16 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
                 // if class is defined, add it to the element. If there's more than one class, split it by spaces, comma, or period
                 if (paragraph.class) p.classList.add(...paragraph.class.split(/[\s,\.]+/));
                 // add the text to the element, ensuring that HTML tags are parsed as HTML
-                p.innerHTML = paragraph.text;
+                p.innerText = paragraph.text;
+
+                // replace <i></i> with HTML
+                p.innerHTML = swapGTLTwithTag(p.innerHTML, 'i');
+                p.innerHTML = swapGTLTwithTag(p.innerHTML, 'b');
+                p.innerHTML = p.innerHTML.replace(/&lt;i&gt;/g, '<i>');
+                p.innerHTML = p.innerHTML.replace(/&lt;\/i&gt;/g, '</i>');
+                // replace <b></b> with HTML
+                p.innerHTML = p.innerHTML.replace(/&lt;b&gt;/g, '<b>');
+                p.innerHTML = p.innerHTML.replace(/&lt;\/b&gt;/g, '</b>');
 
                 // count words to calculate reading time
                 wordCount += paragraph.text.split(' ').length;
@@ -1604,6 +1613,12 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
             ul.appendChild(readingTime);
         };
     }
+}
+
+function swapGTLTwithTag(string, tag) {
+    string = string.replace(`/&lt;${tag}&gt;/g`, `<${tag}>`); 
+    string = string.replace(`/&lt;\/${tag}&gt;/g`, `</${tag}>`);
+    return string;
 }
 
 // ===== HELPER FUNCTIONS =====
