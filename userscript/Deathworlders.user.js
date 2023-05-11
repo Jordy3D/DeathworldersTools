@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.17.0
+// @version      0.18.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -75,6 +75,8 @@
 //          - Fixed a bug failing to detect hijacked chapters as active
 //          - Fixed a bug causing hijacked chapters to dupe based on the number of alt chapters after it
 // 0.17     - Actually fixed the dupe bug by rewriting the hijacking code, should be a lot more stable now
+// 0.18     - Added a link to the Deathworlders Tweaks GitHub repo
+//          - Tweaked width value on sidebars
 //
 // ===== End Changelog =====
 
@@ -140,8 +142,6 @@ setInterval(function () {
     setChatLogElement();
 
     forceBreaks();
-
-    // hijackChapters();
 }, 200);
 
 function reloadOnURLChange() {
@@ -171,9 +171,8 @@ function initialize() {
     request.responseType = 'json';
     request.send();
 
-    // when the JSON is loaded, add the table of contents
+    // when the JSON is loaded, store the table of contents for use elsewhere then run functions that may need it
     request.onload = function () {
-
         tocJSON = request.response;
 
         // if the setting with the name tableOfContents is true, spawn the table of contents
@@ -307,14 +306,28 @@ function spawnSettings() {
     var settingsDiv = document.createElement('div');
     settingsDiv.classList.add('bane-sidebar');
     settingsDiv.classList.add('bane-settings');
-    settingsDiv.innerHTML = `
-        <h1>Deathworlders Tweaks</h1>
-        <div class="bane-settings-subtitle">
-            <h4>v${GM_info.script.version}</h4>
-            <h4>by Bane</h4>
-        </div>
-        <hr>
-    `;
+    document.body.appendChild(settingsDiv);
+
+    let heading = document.createElement('h1');
+    heading.innerText = 'Deathworlders Tweaks';
+    // set href to https://github.com/Jordy3D/DeathworldersTweaks
+    heading.innerHTML = `<a href="https://github.com/Jordy3D/DeathworldersTweaks" target="_blank">${heading.innerHTML}</a>`;
+    heading.classList.add('bane-settings-title');
+    settingsDiv.appendChild(heading);
+
+    let subtitle = document.createElement('div');
+    subtitle.classList.add('bane-settings-subtitle');
+    settingsDiv.appendChild(subtitle);
+
+    let version = document.createElement('h4');
+    version.innerText = `v${GM_info.script.version}`;
+    subtitle.appendChild(version);
+
+    let author = document.createElement('h4');
+    author.innerText = 'by Bane';
+    subtitle.appendChild(author);
+
+    addHR(settingsDiv);
 
     // get a list of all unique tags
     var tags = [];
@@ -362,7 +375,7 @@ function spawnSettings() {
 
             height: 100vh;
             min-width: 370px;
-            width: 22vw;
+            width: 19vw;
 
             position: fixed;
             top: 0;
