@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.16.0
+// @version      0.16.5
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -73,6 +73,7 @@
 //          - Fixed a bug where loaded hijacked chapters would incorrectly display content in < and > (which is used for HTML tags, but they also use it for dialogue """style""")
 // 0.16     - Replaced off-site links with hijacked links where available in the Table of Contents
 //          - Fixed a bug failing to detect hijacked chapters as active
+//          - Fixed a bug causing hijacked chapters to dupe based on the number of alt chapters after it
 //
 // ===== End Changelog =====
 
@@ -1550,6 +1551,9 @@ function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/Deathwor
         var main = document.querySelector('main');
         var list = main.querySelector('#list');
         if (list) list.remove();
+
+        // if there's already a .bane-article element, do nothing
+        if (main.querySelector('.bane-article')) return;
 
         // load the JSON file at the URL using request
         var request = new XMLHttpRequest();
