@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.16.5
+// @version      0.17.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -74,6 +74,7 @@
 // 0.16     - Replaced off-site links with hijacked links where available in the Table of Contents
 //          - Fixed a bug failing to detect hijacked chapters as active
 //          - Fixed a bug causing hijacked chapters to dupe based on the number of alt chapters after it
+// 0.17     - Actually fixed the dupe bug by rewriting the hijacking code, should be a lot more stable now
 //
 // ===== End Changelog =====
 
@@ -83,6 +84,8 @@ var conversationSet = false;
 var conversationScan = 3;
 var chatLogSet = false;
 var breaksForced = false;
+
+var tocJSON = null;
 
 // ===== End Variables =====
 
@@ -138,7 +141,7 @@ setInterval(function () {
 
     forceBreaks();
 
-    hijackChapters();
+    // hijackChapters();
 }, 200);
 
 function reloadOnURLChange() {
@@ -162,14 +165,27 @@ function initialize() {
 
     spawnSettings();
 
-    // if the setting with the name tableOfContents is true, spawn the table of contents
-    if (settings.find(x => x.name === 'tableOfContents').value)
-        spawnTableofContents();
+    var url = 'https://raw.githubusercontent.com/Jordy3D/DeathworldersTools/main/deathworlderstoc.json';
+    var request = new XMLHttpRequest();
+    request.open('GET', url, true);
+    request.responseType = 'json';
+    request.send();
 
-    // addToolTipToAllOffsiteLinks();
-    addToolTipToWhereItNeedsToGo();
+    // when the JSON is loaded, add the table of contents
+    request.onload = function () {
 
-    reloadOnURLChange();
+        tocJSON = request.response;
+
+        // if the setting with the name tableOfContents is true, spawn the table of contents
+        if (settings.find(x => x.name === 'tableOfContents').value)
+            spawnTableofContents();
+
+        addToolTipToWhereItNeedsToGo();
+
+        reloadOnURLChange();
+
+        hijackChapter();
+    }
 }
 
 function checkNewVersion() {
@@ -283,83 +299,6 @@ function checkNewVersion() {
         }
     };
 
-    request.send();
-}
-
-function hijackChapters() {
-    // if the URL doesn't start with https://deathworlders.com/books/#, do nothing
-    if (!window.location.href.startsWith('https://deathworlders.com/books/#')) return;
-    // if the URL is https://deathworlders.com/books/, do nothing
-    if (window.location.href === 'https://deathworlders.com/books/') return;
-
-    // if .bane-article#bane-replace exists, do nothing
-    if (document.querySelector('.bane-article#bane-replace') !== null) return;
-
-    // load deathworlderstoc.json
-    var url = 'https://raw.githubusercontent.com/Jordy3D/DeathworldersTools/main/deathworlderstoc.json';
-    var request = new XMLHttpRequest();
-    request.open('GET', url, true);
-    request.onload = function () {
-        if (request.status >= 200 && request.status < 400) {
-            var response = request.responseText;
-            var toc = JSON.parse(response);
-
-            // get the chapters from the toc
-            var chapters = toc.chapters;
-
-            // find every chapter with a non-empty alt
-            var altChapters = [];
-            for (var i = 0; i < chapters.length; i++) {
-                if (chapters[i].alt !== '')
-                    altChapters.push(chapters[i]);
-            }
-
-            // loop through every chapter
-            for (var i = 0; i < altChapters.length; i++) {
-                var chapter = altChapters[i];
-
-                // if the chapter has a non-empty alt, replace the chapter with the alt
-                if (chapter.alt !== '') {
-                    var linkTag = "";
-                    if (chapter.number >= 0) {
-                        var paddedChapter = chapter.number.toString().padStart(2, "0");
-                        linkTag = paddedChapter;
-
-                        // if the chapter name matches "Part X", add ptX to the link tag
-                        var partRegex = /Part [0-9]+/g;
-                        if (chapter.name.match(partRegex) !== null) {
-                            // get the part number
-                            var partNumber = chapter.name.match(partRegex)[0].replace('Part ', '');
-                            linkTag += `pt${partNumber}`;
-                        }
-                    }
-                    else {
-                        // set the link tag to the chapter name, replacing spaces with dashes and removing non-alphanumeric characters
-                        linkTag = chapter.name.replace(/ /g, '-').replace(/[^a-zA-Z0-9-]/g, '').toLowerCase();
-                    }
-
-                    // console.log(`Replacing ${chapter.name} with ${chapter.alt}`);
-
-                    switch (chapter.book) {
-                        case 'Deathworlders':
-                            continue;
-                        case 'The Xiù Chang Saga':
-                            replace(`xiu-chang/chapter-${linkTag}`);
-                            break;
-                        case 'Salvage':
-                            replace(`salvage/chapter-${linkTag}`);
-                            break;
-                        case 'MIA':
-                            replace(`mia/chapter-${linkTag}`);
-                            break;
-                        case 'Good Training':
-                            replace(`good-training/chapter-${linkTag}`);
-                            break;
-                    }
-                }
-            }
-        }
-    }
     request.send();
 }
 
@@ -1329,193 +1268,178 @@ function loadCSS() {
 }
 
 function spawnTableofContents() {
-    var chapterJSON = null;
+    var chapterJSON = tocJSON;
 
-    // load JSON from my github
-    var url = 'https://raw.githubusercontent.com/Jordy3D/DeathworldersTools/main/deathworlderstoc.json';
-    var request = new XMLHttpRequest();
-    request.open('GET', url, true);
-    request.responseType = 'json';
-    request.send();
+    // add a sidebar on the right side of the page
+    let sidebar = document.createElement('div');
+    sidebar.id = 'bane-toc';
+    sidebar.classList.add('bane-sidebar');
+    sidebar.classList.add('bane-toc');
+    document.body.appendChild(sidebar);
 
-    // when the JSON is loaded, add the table of contents
-    request.onload = function () {
-        chapterJSON = request.response;
+    let sidebarTitle = document.createElement('h1');
+    sidebarTitle.classList.add('bane-toc-title');
+    sidebarTitle.innerHTML = 'Table of Contents';
+    sidebar.appendChild(sidebarTitle);
 
-        // add a sidebar on the right side of the page
-        let sidebar = document.createElement('div');
-        sidebar.id = 'bane-toc';
-        sidebar.classList.add('bane-sidebar');
-        sidebar.classList.add('bane-toc');
-        document.body.appendChild(sidebar);
+    // add a container for next/previous chapter links
+    let navLinks = document.createElement('div');
+    navLinks.classList.add('bane-toc-navlinks');
+    sidebar.appendChild(navLinks);
 
-        let sidebarTitle = document.createElement('h1');
-        sidebarTitle.classList.add('bane-toc-title');
-        sidebarTitle.innerHTML = 'Table of Contents';
-        sidebar.appendChild(sidebarTitle);
+    addHR(sidebar);
 
-        // add a container for next/previous chapter links
-        let navLinks = document.createElement('div');
-        navLinks.classList.add('bane-toc-navlinks');
-        sidebar.appendChild(navLinks);
+    // add a link to the previous chapter
+    let prevLink = document.createElement('a');
+    prevLink.classList.add('bane-toc-navlink-prev');
+    prevLink.innerHTML = '&lt; Previous Chapter';
+    navLinks.appendChild(prevLink);
 
-        addHR(sidebar);
+    // add a link to the next chapter
+    let nextLink = document.createElement('a');
+    nextLink.classList.add('bane-toc-navlink-next');
+    nextLink.innerHTML = 'Next Chapter &gt;';
+    navLinks.appendChild(nextLink);
 
-        // add a link to the previous chapter
-        let prevLink = document.createElement('a');
-        prevLink.classList.add('bane-toc-navlink-prev');
-        prevLink.innerHTML = '&lt; Previous Chapter';
-        navLinks.appendChild(prevLink);
+    // create a container for the table of contents
+    let toc = document.createElement('div');
+    toc.classList.add('bane-toc-container');
+    sidebar.appendChild(toc);
 
-        // add a link to the next chapter
-        let nextLink = document.createElement('a');
-        nextLink.classList.add('bane-toc-navlink-next');
-        nextLink.innerHTML = 'Next Chapter &gt;';
-        navLinks.appendChild(nextLink);
+    // load the table of contents from chapterJSON into the container and add links to the chapters
+    for (let chapter of chapterJSON["chapters"]) {
+        // create an a tag for the chapter
+        let chapterLink = document.createElement('a');
+        chapterLink.classList.add('bane-toc-chapter');
 
-        // create a container for the table of contents
-        let toc = document.createElement('div');
-        toc.classList.add('bane-toc-container');
-        sidebar.appendChild(toc);
+        let datatp = "";
 
-        // load the table of contents from chapterJSON into the container and add links to the chapters
-        for (let chapter of chapterJSON["chapters"]) {
-            // create an a tag for the chapter
-            let chapterLink = document.createElement('a');
-            chapterLink.classList.add('bane-toc-chapter');
+        // add a class based on the book name to colour-code the chapters
+        let chapterBook = chapter.book;
+        includesAdd(chapterLink, chapterBook, 'deathworlders', 'bane-toc-deathworlders');
+        includesAdd(chapterLink, chapterBook, 'good training', 'bane-toc-goodtraining');
+        includesAdd(chapterLink, chapterBook, 'the champions', 'bane-toc-champions');
+        includesAdd(chapterLink, chapterBook, 'babylon', 'bane-toc-babylon');
+        includesAdd(chapterLink, chapterBook, 'bolthole', 'bane-toc-bolthole');
+        includesAdd(chapterLink, chapterBook, 'xiù chang', 'bane-toc-xiuchang');
+        includesAdd(chapterLink, chapterBook, 'mia', 'bane-toc-mia');
+        includesAdd(chapterLink, chapterBook, 'salvage', 'bane-toc-salvage');
 
-            let datatp = "";
+        // add a class based on the chapter type to style-code the chapters
+        let chapterName = chapter.name;
+        if (chapterName.toLowerCase().includes(' part ')) chapterLink.classList.add('part');
+        if (chapterName.toLowerCase().includes('interlude')) chapterLink.classList.add('interlude');
 
-            // add a class based on the book name to colour-code the chapters
-            let chapterBook = chapter.book;
-            includesAdd(chapterLink, chapterBook, 'deathworlders', 'bane-toc-deathworlders');
-            includesAdd(chapterLink, chapterBook, 'good training', 'bane-toc-goodtraining');
-            includesAdd(chapterLink, chapterBook, 'the champions', 'bane-toc-champions');
-            includesAdd(chapterLink, chapterBook, 'babylon', 'bane-toc-babylon');
-            includesAdd(chapterLink, chapterBook, 'bolthole', 'bane-toc-bolthole');
-            includesAdd(chapterLink, chapterBook, 'xiù chang', 'bane-toc-xiuchang');
-            includesAdd(chapterLink, chapterBook, 'mia', 'bane-toc-mia');
-            includesAdd(chapterLink, chapterBook, 'salvage', 'bane-toc-salvage');
+        let chapterURL = chapter.url;
+        chapterLink.href = chapterURL;
 
-            // add a class based on the chapter type to style-code the chapters
-            let chapterName = chapter.name;
-            if (chapterName.toLowerCase().includes(' part ')) chapterLink.classList.add('part');
-            if (chapterName.toLowerCase().includes('interlude')) chapterLink.classList.add('interlude');
+        // if the url is offsite, add a class to the chapter
+        if (!chapterURL.includes('deathworlders.com')) {
+            // check if the chapter has an alt url
+            if (chapter.alt != null && chapter.alt != "") {
+                chapterLink.href = chapter.alt;
+                chapterLink.classList.add('hijack');
 
-            let chapterURL = chapter.url;
-            chapterLink.href = chapterURL;
-
-            // if the url is offsite, add a class to the chapter
-            if (!chapterURL.includes('deathworlders.com')) {
-                // check if the chapter has an alt url
-                if (chapter.alt != null && chapter.alt != "") {
-                    chapterLink.href = chapter.alt;
-                    chapterLink.classList.add('hijack');
-
-                    datatp += `Alt URL: ${chapter.alt}\n`;
-                }
-                else
-                {
-                    chapterLink.classList.add('offsite');
-                    var domain = chapterLink.hostname;
-                    domain = domain.replace('www.', '');
-                    
-                    datatp += `Offsite Link: (${domain})\n`
-                }
+                datatp += `Alt URL: ${chapter.alt}\n`;
             }
+            else {
+                chapterLink.classList.add('offsite');
+                var domain = chapterLink.hostname;
+                domain = domain.replace('www.', '');
 
-            let chapterNote = chapter.note;
-            if (chapterNote != null && chapterNote != "") {
-                // add a note to the chapter as data
-                chapterLink.setAttribute('data-note', chapterNote);
-                chapterLink.classList.add('bane-toc-note');
-
-                datatp += `Note: ${chapterNote}\n`;
+                datatp += `Offsite Link: (${domain})\n`
             }
-
-            if (chapter.number == null || chapter.number == -1)
-                chapterLink.innerText = `${chapter.book}\n${chapter.name}`;
-            else
-                chapterLink.innerText = `${chapter.book} ${chapter.number}\n${chapter.name}`;
-
-            if (chapter.url == window.location.href || chapter.alt == window.location.href) {
-                chapterLink.classList.add('bane-toc-active');
-
-                // add a link to the previous chapter based on the current chapter's index
-                let index = chapterJSON["chapters"].indexOf(chapter);
-                let prevChapter = chapterJSON["chapters"][index - 1];
-                prevLink.href = prevChapter.url;
-                if (index > 0) {
-                    let target = isOffsite("deathworlders.com", prevChapter.url);
-                    if (target[0]) {
-                        // if the previous chapter has an alt url, use that instead
-                        if (prevChapter.alt != null && prevChapter.alt != "") {
-                            prevLink.href = prevChapter.alt;
-                            prevLink.classList.add('hijack');
-                        }
-                        else
-                        {
-                            prevLink.classList.add('offsite');
-                            prevLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
-                        }
-                    }
-                }
-                else {
-                    prevLink.innerHTML = '';
-                    prevLink.style.pointerEvents = 'none';
-                }
-
-                // add a link to the next chapter based on the current chapter's index
-                var nextChapter = chapterJSON["chapters"][index + 1];
-                nextLink.href = nextChapter.url;
-                if (index < chapterJSON["chapters"].length - 1) {
-                    let target = isOffsite("deathworlders.com", nextChapter.url);
-                    if (target[0]) {
-                        // if the next chapter has an alt url, use that instead
-                        if (nextChapter.alt != null && nextChapter.alt != "") {
-                            nextLink.href = nextChapter.alt;
-                            nextLink.classList.add('hijack');
-                        }
-                        else
-                        {
-                            nextLink.classList.add('offsite');
-                            nextLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
-                        }
-                    }
-                }
-                else {
-                    nextLink.innerHTML = '';
-                    nextLink.style.pointerEvents = 'none';
-                }
-            }
-
-            // add tooltip text as data
-            if (datatp != "")
-                chapterLink.setAttribute('data-tooltip', datatp);
-
-            // add the chapter to the table of contents
-            toc.appendChild(chapterLink);
         }
 
-        addHR(sidebar);
+        let chapterNote = chapter.note;
+        if (chapterNote != null && chapterNote != "") {
+            // add a note to the chapter as data
+            chapterLink.setAttribute('data-note', chapterNote);
+            chapterLink.classList.add('bane-toc-note');
 
-        // add a link to the full reading order
-        let fullReadingOrder = document.createElement('a');
-        fullReadingOrder.href = 'https://www.reddit.com/r/HFY/wiki/ref/universes/jenkinsverse/chronological_reading_order/';
-        fullReadingOrder.innerText = 'Full Reading Order';
-        fullReadingOrder.classList.add('bane-toc-readingorder');
-        fullReadingOrder.classList.add('offsite');
-        sidebar.appendChild(fullReadingOrder);
-
-        // scroll to the active chapter, vertically centering it
-        let activeChapter = document.querySelector('.bane-toc-active');
-        if (activeChapter) {
-            activeChapter.scrollIntoView({
-                behavior: 'auto',
-                block: 'center',
-                inline: 'center',
-            });
+            datatp += `Note: ${chapterNote}\n`;
         }
+
+        if (chapter.number == null || chapter.number == -1)
+            chapterLink.innerText = `${chapter.book}\n${chapter.name}`;
+        else
+            chapterLink.innerText = `${chapter.book} ${chapter.number}\n${chapter.name}`;
+
+        if (chapter.url == window.location.href || chapter.alt == window.location.href) {
+            chapterLink.classList.add('bane-toc-active');
+
+            // add a link to the previous chapter based on the current chapter's index
+            let index = chapterJSON["chapters"].indexOf(chapter);
+            let prevChapter = chapterJSON["chapters"][index - 1];
+            prevLink.href = prevChapter.url;
+            if (index > 0) {
+                let target = isOffsite("deathworlders.com", prevChapter.url);
+                if (target[0]) {
+                    // if the previous chapter has an alt url, use that instead
+                    if (prevChapter.alt != null && prevChapter.alt != "") {
+                        prevLink.href = prevChapter.alt;
+                        prevLink.classList.add('hijack');
+                    }
+                    else {
+                        prevLink.classList.add('offsite');
+                        prevLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                    }
+                }
+            }
+            else {
+                prevLink.innerHTML = '';
+                prevLink.style.pointerEvents = 'none';
+            }
+
+            // add a link to the next chapter based on the current chapter's index
+            var nextChapter = chapterJSON["chapters"][index + 1];
+            nextLink.href = nextChapter.url;
+            if (index < chapterJSON["chapters"].length - 1) {
+                let target = isOffsite("deathworlders.com", nextChapter.url);
+                if (target[0]) {
+                    // if the next chapter has an alt url, use that instead
+                    if (nextChapter.alt != null && nextChapter.alt != "") {
+                        nextLink.href = nextChapter.alt;
+                        nextLink.classList.add('hijack');
+                    }
+                    else {
+                        nextLink.classList.add('offsite');
+                        nextLink.setAttribute('data-tooltip', `Offsite Link: (${target[1]})`);
+                    }
+                }
+            }
+            else {
+                nextLink.innerHTML = '';
+                nextLink.style.pointerEvents = 'none';
+            }
+        }
+
+        // add tooltip text as data
+        if (datatp != "")
+            chapterLink.setAttribute('data-tooltip', datatp);
+
+        // add the chapter to the table of contents
+        toc.appendChild(chapterLink);
+    }
+
+    addHR(sidebar);
+
+    // add a link to the full reading order
+    let fullReadingOrder = document.createElement('a');
+    fullReadingOrder.href = 'https://www.reddit.com/r/HFY/wiki/ref/universes/jenkinsverse/chronological_reading_order/';
+    fullReadingOrder.innerText = 'Full Reading Order';
+    fullReadingOrder.classList.add('bane-toc-readingorder');
+    fullReadingOrder.classList.add('offsite');
+    sidebar.appendChild(fullReadingOrder);
+
+    // scroll to the active chapter, vertically centering it
+    let activeChapter = document.querySelector('.bane-toc-active');
+    if (activeChapter) {
+        activeChapter.scrollIntoView({
+            behavior: 'auto',
+            block: 'center',
+            inline: 'center',
+        });
     }
 }
 
@@ -1540,109 +1464,112 @@ function addToolTipToWhereItNeedsToGo() {
     });
 }
 
-function replace(hash, url = 'https://raw.githubusercontent.com/Jordy3D/DeathworldersTweaks/main/stories/' + hash + '.json') {
-    var json = null;
+function hijackChapter() {
+    var toc = tocJSON;
 
-    // console.log(`Replacing #${hash} with ${url}`);
+    var chapters = toc.chapters;
+    var currentURL = window.location.href;
 
-    // if the URL matches https://deathworlders.com/books/#HASH
-    if (window.location.hash == '#' + hash) {
-        // find the main element and delete the #list element
+    for (var i = 0; i < chapters.length; i++) {
+        if (chapters[i].alt !== '' && currentURL == chapters[i].alt)
+            replace(currentURL);
+    }
+}
+
+function replace(sourceUrl) {
+    var hash = sourceUrl.split('#')[1];
+    var url = `https://raw.githubusercontent.com/Jordy3D/DeathworldersTweaks/main/stories/${hash}.json`;
+
+    var request = new XMLHttpRequest();
+    request.open('GET', url);
+    request.responseType = 'json';
+    request.send();
+
+    // when the request loads, run this function
+    request.onload = function () {
+        // set the json variable to the response
+        json = request.response;
+
         var main = document.querySelector('main');
         var list = main.querySelector('#list');
         if (list) list.remove();
 
-        // if there's already a .bane-article element, do nothing
-        if (main.querySelector('.bane-article')) return;
+        // if the json has a source, add it to the page as main > div.download-epub-btn.add-margin > span.epub-btn-text:TEXT=" SOURCE" > span.fas.fa-download.fa-lg::before:CONTENT="\f0c1"
+        if (json.source) {
+            var sourceLink = document.createElement('div');
+            sourceLink.classList.add('download-epub-btn');
+            sourceLink.classList.add('epub-btn');
+            sourceLink.classList.add('add-margin');
+            sourceLink.innerHTML = `<span class="fas fa-link fa-lg" style="font-size:revert"></span><span class="epub-btn-text"><a href="${json.source}"> SOURCE</a></span>`;
+            main.appendChild(sourceLink);
+        }
 
-        // load the JSON file at the URL using request
-        var request = new XMLHttpRequest();
-        request.open('GET', url);
-        request.responseType = 'json';
-        request.send();
+        // create a new article with the id #bane-replace
+        var article = document.createElement('article');
+        article.id = 'bane-replace';
+        article.classList.add('bane-article');
+        main.appendChild(article);
 
-        // when the request loads, run this function
-        request.onload = function () {
-            // set the json variable to the response
-            json = request.response;
+        // add the title to the page
+        var title = document.createElement('h1');
+        title.innerText = `${json.book}\nChapter ${json.chapter}: ${json.chapterTitle}`;
+        article.appendChild(title);
 
-            // if the json has a source, add it to the page as main > div.download-epub-btn.add-margin > span.epub-btn-text:TEXT=" SOURCE" > span.fas.fa-download.fa-lg::before:CONTENT="\f0c1"
-            if (json.source) {
-                var sourceLink = document.createElement('div');
-                sourceLink.classList.add('download-epub-btn');
-                sourceLink.classList.add('epub-btn');
-                sourceLink.classList.add('add-margin');
-                sourceLink.innerHTML = `<span class="fas fa-link fa-lg" style="font-size:revert"></span><span class="epub-btn-text"><a href="${json.source}"> SOURCE</a></span>`;
-                main.appendChild(sourceLink);
+        // add aside > ul > li > time
+        var aside = document.createElement('aside');
+        var ul = document.createElement('ul');
+        var li = document.createElement('li');
+
+        if (json.date) {
+            var time = document.createElement('time');
+            // set the time's datetime attribute to the date
+            var date = new Date(json.date);
+            time.classList.add('post-date');
+            time.setAttribute('datetime', `${date}T00:00:00`);
+            // set the time's innerText to the date formatted as Mon X, YYYY
+            time.innerText = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        li.appendChild(time);
+        ul.appendChild(li);
+        aside.appendChild(ul);
+        article.appendChild(aside);
+
+        var wordCount = 0;
+
+        // add each paragraph to the page
+        for (var i = 0; i < json.content.length; i++) {
+            var paragraph = json.content[i];
+
+            if (paragraph.tag == 'hr') {
+                addHR(article);
+                continue;
             }
 
-            // create a new article with the id #bane-replace
-            var article = document.createElement('article');
-            article.id = 'bane-replace';
-            article.classList.add('bane-article');
-            main.appendChild(article);
+            if (paragraph.text == '' || paragraph.text == ' ') continue;
 
-            // add the title to the page
-            var title = document.createElement('h1');
-            title.innerText = `${json.book}\nChapter ${json.chapter}: ${json.chapterTitle}`;
-            article.appendChild(title);
+            // create an element based on the paragraph's tag
+            var p = document.createElement(paragraph.tag);
+            // if class is defined, add it to the element. If there's more than one class, split it by spaces, comma, or period
+            if (paragraph.class) p.classList.add(...paragraph.class.split(/[\s,\.]+/));
+            // add the text to the element, ensuring that HTML tags are parsed as HTML
+            p.innerHTML = paragraph.text;
 
-            // add aside > ul > li > time
-            var aside = document.createElement('aside');
-            var ul = document.createElement('ul');
-            var li = document.createElement('li');
+            // replace <> and </> text with tags
+            p.innerHTML = swapGTLTwithTag(p.innerHTML, 'i');
+            p.innerHTML = swapGTLTwithTag(p.innerHTML, 'b');
 
-            if (json.date) {
-                var time = document.createElement('time');
-                // set the time's datetime attribute to the date
-                var date = new Date(json.date);
-                time.classList.add('post-date');
-                time.setAttribute('datetime', `${date}T00:00:00`);
-                // set the time's innerText to the date formatted as Mon X, YYYY
-                time.innerText = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            }
+            // count words to calculate reading time
+            wordCount += paragraph.text.split(' ').length;
 
-            li.appendChild(time);
-            ul.appendChild(li);
-            aside.appendChild(ul);
-            article.appendChild(aside);
+            article.appendChild(p);
+        }
 
-            var wordCount = 0;
-
-            // add each paragraph to the page
-            for (var i = 0; i < json.content.length; i++) {
-                var paragraph = json.content[i];
-
-                if (paragraph.tag == 'hr') {
-                    addHR(article);
-                    continue;
-                }
-
-                if (paragraph.text == '' || paragraph.text == ' ') continue;
-
-                // create an element based on the paragraph's tag
-                var p = document.createElement(paragraph.tag);
-                // if class is defined, add it to the element. If there's more than one class, split it by spaces, comma, or period
-                if (paragraph.class) p.classList.add(...paragraph.class.split(/[\s,\.]+/));
-                // add the text to the element, ensuring that HTML tags are parsed as HTML
-                p.innerHTML = paragraph.text;
-
-                // replace <> and </> text with tags
-                p.innerHTML = swapGTLTwithTag(p.innerHTML, 'i');
-                p.innerHTML = swapGTLTwithTag(p.innerHTML, 'b');
-
-                // count words to calculate reading time
-                wordCount += paragraph.text.split(' ').length;
-
-                article.appendChild(p);
-            }
-
-            // add reading time to the page
-            var readingTime = document.createElement('li');
-            readingTime.innerText = `${Math.ceil(wordCount / 200)} min read`;
-            ul.appendChild(readingTime);
-        };
-    }
+        // add reading time to the page
+        var readingTime = document.createElement('li');
+        readingTime.innerText = `${Math.ceil(wordCount / 200)} min read`;
+        ul.appendChild(readingTime);
+    };
 }
 
 // ===== HELPER FUNCTIONS =====
@@ -1672,7 +1599,7 @@ function findClassWithinDistance(array, currentIndex, distance, searchClass) {
 }
 
 function swapGTLTwithTag(string, tag) {
-    string = string.replace(`/&lt;${tag}&gt;/g`, `<${tag}>`); 
+    string = string.replace(`/&lt;${tag}&gt;/g`, `<${tag}>`);
     string = string.replace(`/&lt;\/${tag}&gt;/g`, `</${tag}>`);
     return string;
 }
