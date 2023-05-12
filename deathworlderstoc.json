@@ -1495,22 +1495,13 @@
             "homework": false
         },
         {
-            "book": "Deathworlders",
-            "number": 41,
-            "name": "Pyrophytes",
-            "url": "https://deathworlders.com/books/deathworlders/chapter-41-pyrophytes/",
-            "alt": "",
-            "note": "",
-            "homework": false
-        },
-        {
             "book": "Good Training",
             "number": -1,
             "name": "Survival",
             "url": "https://deathworlders.com/books/good-training/survival/",
             "alt": "",
             "note": "",
-            "homework": false
+            "homework": true
         },
         {
             "book": "Waters of Babylon",
@@ -1519,7 +1510,7 @@
             "url": "https://deathworlders.com/books/waters-babylon/1-tzedakah/",
             "alt": "",
             "note": "",
-            "homework": false
+            "homework": true
         },
         {
             "book": "Waters of Babylon",
@@ -1528,13 +1519,22 @@
             "url": "https://deathworlders.com/books/waters-babylon/2-tikkun-olam/",
             "alt": "",
             "note": "",
-            "homework": false
+            "homework": true
         },
         {
             "book": "Waters of Babylon",
             "number": 3,
             "name": "Mitzvah",
             "url": "https://deathworlders.com/books/waters-babylon/3-mitzvah/",
+            "alt": "",
+            "note": "",
+            "homework": true
+        },
+        {
+            "book": "Deathworlders",
+            "number": 41,
+            "name": "Pyrophytes",
+            "url": "https://deathworlders.com/books/deathworlders/chapter-41-pyrophytes/",
             "alt": "",
             "note": "",
             "homework": false
