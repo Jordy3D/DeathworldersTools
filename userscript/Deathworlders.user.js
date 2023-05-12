@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.19.0
+// @version      0.19.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -78,7 +78,7 @@
 // 0.18     - Added a link to the Deathworlders Tweaks GitHub repo
 //          - Tweaked width value on sidebars
 // 0.19     - Added tooltips to some of the settings
-//          - Added a new alternative text style for easier reading
+//          - Added a new alternative text style for easier reading (still broken at times)
 //          - Removed the Fix Broken HRs setting, as it was the fault of the script (and so became default)
 //          - Fixed an issue with tooltip positioning horizontally
 //
@@ -191,8 +191,8 @@ function initialize() {
 
         hijackChapter();
 
-        // run this after 1 second to make sure the page is loaded
-        setTimeout(halfbold, 1000);
+        if (settings.find(x => x.name === 'alternateTextMode').value)          
+            setTimeout(halfbold, 1000);
     }
 }
 
