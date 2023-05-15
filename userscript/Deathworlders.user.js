@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.18.0
+// @version      0.19.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -77,6 +77,10 @@
 // 0.17     - Actually fixed the dupe bug by rewriting the hijacking code, should be a lot more stable now
 // 0.18     - Added a link to the Deathworlders Tweaks GitHub repo
 //          - Tweaked width value on sidebars
+// 0.19     - Added tooltips to some of the settings
+//          - Added a new alternative text style for easier reading (still broken at times)
+//          - Removed the Fix Broken HRs setting, as it was the fault of the script (and so became default)
+//          - Fixed an issue with tooltip positioning horizontally
 //
 // ===== End Changelog =====
 
@@ -95,20 +99,22 @@ var tocJSON = null;
 
 var defaultSettings = [];
 defaultSettings.push({ name: 'replaceSectionEndHeaders', value: true, fancyText: 'Replace Section End Headers', tag: 'Fix' });
-defaultSettings.push({ name: 'fixBrokenHRTags', value: true, fancyText: 'Fix Broken HR Tags', tag: 'Fix' });
 defaultSettings.push({ name: 'darkScrollbars', value: true, fancyText: 'Dark Scrollbar', tag: 'Style' });
-defaultSettings.push({ name: 'fixCodeBlocks', value: true, fancyText: 'Fix Code Blocks', tag: 'Fix' });
-defaultSettings.push({ name: 'fixBlockquotes', value: true, fancyText: 'Fix Blockquotes', tag: 'Fix' });
-defaultSettings.push({ name: 'fancySMS', value: true, fancyText: 'Fancy SMS', tag: 'Style' });
-defaultSettings.push({ name: 'fancySMSBubbles', value: true, fancyText: 'Fancy SMS Bubbles', tag: 'Style' });
+defaultSettings.push({ name: 'fixCodeBlocks', value: true, fancyText: 'Fix Code Blocks', tag: 'Fix', tooltip: 'Stops code blocks from needing to be scrolled horizontally' });
+defaultSettings.push({ name: 'fixBlockquotes', value: true, fancyText: 'Fix Blockquotes', tag: 'Fix', tooltip: 'Makes blockquote quote marks appear correctly' });
+defaultSettings.push({ name: 'fancySMS', value: true, fancyText: 'Fancy SMS', tag: 'Style', tooltip: 'Makes certain conversations look like SMS messages' });
+defaultSettings.push({ name: 'fancySMSBubbles', value: true, fancyText: 'Fancy SMS Bubbles', tag: 'Style', tooltip: 'Adds little bubbles to the SMS messages' });
 defaultSettings.push({ name: 'justifyParagraphs', value: true, fancyText: 'Justify Paragraphs', tag: 'Style' });
 defaultSettings.push({ name: 'addCover', value: true, fancyText: 'Add Cover', tag: 'Function' });
-defaultSettings.push({ name: 'fancyChatLog', value: true, fancyText: 'Fancy Chat Log', tag: 'Style' });
-defaultSettings.push({ name: 'fancyChatLogKeep++', value: false, fancyText: 'Fancy Chat Log Keep ++', tag: 'Style' });
+defaultSettings.push({ name: 'fancyChatLog', value: true, fancyText: 'Fancy Chat Log', tag: 'Style', tooltip: 'Makes certain conversations look more like an IRC chat log' });
+defaultSettings.push({ name: 'fancyChatLogKeep++', value: false, fancyText: 'Fancy Chat Log Keep ++', tag: 'Style', tooltip: 'Replaces the ++ formatting for user names' });
 defaultSettings.push({ name: 'fancyChatLogRoundedSystem', value: true, fancyText: 'Fancy Chat Log Rounded System', tag: 'Style' });
 defaultSettings.push({ name: 'tableOfContents', value: true, fancyText: 'Table of Contents', tag: 'Function' });
 defaultSettings.push({ name: 'highlightLinks', value: true, fancyText: 'Highlight Links in Text', tag: 'Style' });
 // defaultSettings.push({ name: 'useAltLinks', value: true, fancyText: 'Use Alt Links (Hijack /books/)', tag: 'Function' });
+defaultSettings.push({ name: 'alternateTextMode', value: false, fancyText: 'Alternate Text Mode', tag: 'Style', tooltip: 'Attempts to make the text more readable for some people.' });
+
+// defaultSettings.push({ name: 'testSetting', value: false, fancyText: 'Test Setting', tag: 'Test', tooltip: 'Test tooltip.' });
 
 var settings = [];
 
@@ -184,6 +190,9 @@ function initialize() {
         reloadOnURLChange();
 
         hijackChapter();
+
+        if (settings.find(x => x.name === 'alternateTextMode').value)          
+            setTimeout(halfbold, 1000);
     }
 }
 
@@ -357,6 +366,9 @@ function spawnSettings() {
                 <input type="checkbox" id="bane-setting-${setting}" ${settings[setting].value ? 'checked' : ''}>
                 <label for="bane-setting-${setting}">switch</label>
             `;
+
+            if (settings[setting].tooltip)
+                settingDiv.setAttribute('data-tooltip', settings[setting].tooltip);
 
             settingDiv.querySelector(`#bane-setting-${setting}`).addEventListener('change', updateSettings);
 
@@ -872,6 +884,13 @@ function loadCSS() {
             flex-direction: column;
             align-content: center;
             width: 100%;
+        }  
+        article hr
+        {
+            width: 100%;
+            padding-bottom: 3rem;
+            border: none;
+            border-bottom: 1px solid white;
         }
 
         hr { width: 100%; }
@@ -893,17 +912,6 @@ function loadCSS() {
                             border-bottom: 1px solid white;
                             padding-bottom: 3rem;
                             }
-                    `;
-                    break;
-                case 'fixBrokenHRTags':
-                    style.innerHTML += `
-                        article hr
-                      {
-                            width: 100%;
-                            padding-bottom: 3rem;
-                            border: none;
-                            border-bottom: 1px solid white;
-                        }
                     `;
                     break;
                 case 'darkScrollbars':
@@ -1272,6 +1280,29 @@ function loadCSS() {
                         .bane-article p a { color: #d09242 !important; }
                         .bane-article p a:hover { text-decoration: underline; }
                     `;
+                    break;
+                case 'alternateTextMode':
+                    style.innerHTML += `
+                        p
+                        {
+                            font-family: "Ruda", sans-serif;
+                            line-height: 30px;
+                            letter-spacing: 1px;
+                            
+                            font-weight: 100;
+                            
+                            color: #dedede;
+                        }
+                        
+                        p hb
+                        {
+                            font-weight: 1000;
+                            color: #fff;
+                        }
+                        
+                        body:not(.inverted) p, body:not(.inverted) p hb { color: black; }
+                    `;
+                    break;
             }
         }
     }
@@ -1469,7 +1500,14 @@ function addToolTipToWhereItNeedsToGo() {
             // set tooltip text to contents of data-tooltip attribute
             var msg = target.getAttribute('data-tooltip');
             tp.updateTooltipMessage(msg);
-            tp.moveTooltipToElement(target, 'left');
+            // if the target is a child of .bane-toc
+            if (target.closest('.bane-toc')) {
+                tp.moveTooltipToElement(target, 'left');
+            }
+            // if the target is a child of .bane-settings
+            else if (target.closest('.bane-settings')) {
+                tp.moveTooltipToElement(target, 'right');
+            }
         }
         else {
             tp.classList.remove('active');
@@ -1585,6 +1623,47 @@ function replace(sourceUrl) {
     };
 }
 
+function halfbold() {
+    // find all <p> tags
+    var paragraphs = document.querySelectorAll('p');
+
+    // for each <p> tag
+    for (var i = 0; i < paragraphs.length; i++) {
+        var paragraph = paragraphs[i];
+        var words = paragraph.innerHTML.split(' ');
+
+        for (var j = 0; j < words.length; j++) {
+            var word = words[j];
+
+            if (word == '') continue;
+
+            // if word starts with <X> using regex, keep the tag off to the side and add it back later
+            var startTag = '';
+            var endTag = '';
+
+            var wordHasEndItalic = word.includes('</i>');
+            if (wordHasEndItalic) {
+                word = word.replace('</i>', '');
+                endTag = '</i>';
+            }
+
+            var wordHasStartItalic = word.includes('<i>');
+            if (wordHasStartItalic) {
+                word = word.replace('<i>', '');
+                startTag = '<i>';
+            }
+
+            // add <hb> tags to the front and middle of the word
+            var firstHalf = word.substring(0, word.length / 2);
+            var secondHalf = word.substring(word.length / 2);
+
+            words[j] = `${startTag}<hb>${firstHalf}</hb>${secondHalf}${endTag}`;
+        }
+
+        paragraph.innerHTML = words.join(' ');
+    }
+}
+
 // ===== HELPER FUNCTIONS =====
 
 function findClassWithinDistance(array, currentIndex, distance, searchClass) {
@@ -1663,7 +1742,7 @@ function tooltip() {
                 border-radius: 5px;
 
                 opacity: 0;
-                transform: translate(-110%, -70%);
+                transform: translate(0%, -70%);
             }
             .bane-tooltip.active { opacity: 1; }
 
@@ -1678,7 +1757,7 @@ function tooltip() {
                 width: 10px;
                 height: 10px;
 
-                background: #D04242;
+                background: inherit;
             }
 
             .bane-tooltip.top::before
@@ -1760,8 +1839,12 @@ function tooltip() {
         tp.style.top = y + 'px';
     }
 
-    function moveTooltipToElement(element, side) {
+    function moveTooltipToElement(element, side, distance=20) {
         var rect = element.getBoundingClientRect();
+
+        var sides = ['top', 'bottom', 'left', 'right'];
+        // remove all sides
+        sides.forEach(s => tp.classList.remove(s));
 
         tp.classList.add(side);
 
@@ -1775,14 +1858,14 @@ function tooltip() {
                 break;
             case 'bottom':
                 x = rect.left + (rect.width / 2);
-                y = rect.bottom;
+                y = rect.top + rect.height;
                 break;
             case 'left':
-                x = rect.left;
+                x = rect.left - tp.offsetWidth - distance;
                 y = rect.top + (rect.height / 2);
                 break;
             case 'right':
-                x = rect.right;
+                x = rect.left + rect.width + distance;
                 y = rect.top + (rect.height / 2);
                 break;
         }
@@ -1794,6 +1877,10 @@ function tooltip() {
         tp.style.top = y + 'px';
     }
 
+    function colorTooltip(color) {
+        tp.style.background = color;
+    }
+
     // make the above functions public
     tp.updateTooltipMessage = updateTooltipMessage;
     tp.moveTooltip = moveTooltip;
@@ -1801,3 +1888,4 @@ function tooltip() {
 
     return tp;
 }
+
