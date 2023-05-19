@@ -1414,9 +1414,9 @@ function spawnTableofContents() {
 
             // add a link to the previous chapter based on the current chapter's index
             let index = chapterJSON["chapters"].indexOf(chapter);
-            let prevChapter = chapterJSON["chapters"][index - 1];
-            prevLink.href = prevChapter.url;
             if (index > 0) {
+                let prevChapter = chapterJSON["chapters"][index - 1];
+                prevLink.href = prevChapter.url;
                 let target = isOffsite("deathworlders.com", prevChapter.url);
                 if (target[0]) {
                     // if the previous chapter has an alt url, use that instead
@@ -1436,9 +1436,9 @@ function spawnTableofContents() {
             }
 
             // add a link to the next chapter based on the current chapter's index
-            var nextChapter = chapterJSON["chapters"][index + 1];
-            nextLink.href = nextChapter.url;
             if (index < chapterJSON["chapters"].length - 1) {
+                var nextChapter = chapterJSON["chapters"][index + 1];
+                nextLink.href = nextChapter.url;
                 let target = isOffsite("deathworlders.com", nextChapter.url);
                 if (target[0]) {
                     // if the next chapter has an alt url, use that instead
@@ -1456,6 +1456,13 @@ function spawnTableofContents() {
                 nextLink.innerHTML = '';
                 nextLink.style.pointerEvents = 'none';
             }
+        }
+        // if not a chapter page, hide the next/previous links
+        if (window.location.href == 'https://deathworlders.com/' || window.location.href == 'https://deathworlders.com/books') {
+            prevLink.innerHTML = '';
+            prevLink.style.pointerEvents = 'none';
+            nextLink.innerHTML = '';
+            nextLink.style.pointerEvents = 'none';
         }
 
         // add tooltip text as data
