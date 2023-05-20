@@ -1523,6 +1523,7 @@ function addToolTipToWhereItNeedsToGo() {
 }
 
 function hijackChapter() {
+    console.log('Hijacking chapter');
     var toc = tocJSON;
 
     var chapters = toc.chapters;
@@ -1530,12 +1531,27 @@ function hijackChapter() {
 
     for (var i = 0; i < chapters.length; i++) {
         if (chapters[i].alt !== '' && currentURL == chapters[i].alt)
+        {
+            console.log(`Found alt URL for ${currentURL}!`);
             replace(currentURL);
+        }
     }
 }
 
 function replace(sourceUrl) {
-    var hash = sourceUrl.split('#')[1];
+    console.log(`Replacing ${sourceUrl} with GitHub version`);
+
+    // if URL has a # in it, use that to get the hash
+    if (sourceUrl.includes('#'))
+    {
+        var hash = sourceUrl.split('#')[1];
+    }
+    // else, the hash is the last two parts of the URL, split by /
+    else
+    {
+        var hash = sourceUrl.split('/').slice(-2).join('/');
+    }
+    console.log(hash);
     var url = `https://raw.githubusercontent.com/Jordy3D/DeathworldersTweaks/main/stories/${hash}.json`;
 
     var request = new XMLHttpRequest();
