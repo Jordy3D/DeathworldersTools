@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.19.4
+// @version      0.20.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -81,6 +81,8 @@
 //          - Added a new alternative text style for easier reading (still broken at times)
 //          - Removed the Fix Broken HRs setting, as it was the fault of the script (and so became default)
 //          - Fixed an issue with tooltip positioning horizontally
+// 0.20     - Removed the need for # in the URL for hijacking, making it appear more natural
+//          - Made Source button open in a new tab
 //
 // ===== End Changelog =====
 
@@ -191,7 +193,7 @@ function initialize() {
 
         hijackChapter();
 
-        if (settings.find(x => x.name === 'alternateTextMode').value)          
+        if (settings.find(x => x.name === 'alternateTextMode').value)
             setTimeout(halfbold, 1000);
     }
 }
@@ -278,7 +280,6 @@ function checkNewVersion() {
                         50% { transform: scale(1) rotate(-15deg); }
                         100% { transform: scale(1) rotate(-25deg); }
                     }
-
 
                     /* Update Button */
                     .bane-settings:not(.new) .not-button { display: none; }
@@ -1507,14 +1508,11 @@ function addToolTipToWhereItNeedsToGo() {
             // set tooltip text to contents of data-tooltip attribute
             var msg = target.getAttribute('data-tooltip');
             tp.updateTooltipMessage(msg);
-            // if the target is a child of .bane-toc
-            if (target.closest('.bane-toc')) {
+
+            if (target.closest('.bane-toc'))
                 tp.moveTooltipToElement(target, 'left');
-            }
-            // if the target is a child of .bane-settings
-            else if (target.closest('.bane-settings')) {
+            else if (target.closest('.bane-settings'))
                 tp.moveTooltipToElement(target, 'right');
-            }
         }
         else {
             tp.classList.remove('active');
@@ -1523,17 +1521,15 @@ function addToolTipToWhereItNeedsToGo() {
 }
 
 function hijackChapter() {
-    console.log('Hijacking chapter');
     var toc = tocJSON;
 
     var chapters = toc.chapters;
     var currentURL = window.location.href;
 
     for (var i = 0; i < chapters.length; i++) {
-        if (chapters[i].alt !== '' && currentURL == chapters[i].alt)
-        {
-            console.log(`Found alt URL for ${currentURL}!`);
+        if (chapters[i].alt !== '' && currentURL == chapters[i].alt) {
             replace(currentURL);
+            return;
         }
     }
 }
@@ -1541,17 +1537,8 @@ function hijackChapter() {
 function replace(sourceUrl) {
     console.log(`Replacing ${sourceUrl} with GitHub version`);
 
-    // if URL has a # in it, use that to get the hash
-    if (sourceUrl.includes('#'))
-    {
-        var hash = sourceUrl.split('#')[1];
-    }
-    // else, the hash is the last two parts of the URL, split by /
-    else
-    {
-        var hash = sourceUrl.split('/').slice(-2).join('/');
-    }
-    console.log(hash);
+    var hash = sourceUrl.split('#')[1] || sourceUrl.split('/').slice(-2).join('/');
+
     var url = `https://raw.githubusercontent.com/Jordy3D/DeathworldersTweaks/main/stories/${hash}.json`;
 
     var request = new XMLHttpRequest();
@@ -1565,8 +1552,8 @@ function replace(sourceUrl) {
         json = request.response;
 
         var main = document.querySelector('main');
-        var list = main.querySelector('#list');
-        if (list) list.remove();
+        var section = main.querySelector('section');
+        if (section) section.remove();
 
         // if the json has a source, add it to the page as main > div.download-epub-btn.add-margin > span.epub-btn-text:TEXT=" SOURCE" > span.fas.fa-download.fa-lg::before:CONTENT="\f0c1"
         if (json.source) {
@@ -1574,7 +1561,7 @@ function replace(sourceUrl) {
             sourceLink.classList.add('download-epub-btn');
             sourceLink.classList.add('epub-btn');
             sourceLink.classList.add('add-margin');
-            sourceLink.innerHTML = `<span class="fas fa-link fa-lg" style="font-size:revert"></span><span class="epub-btn-text"><a href="${json.source}"> SOURCE</a></span>`;
+            sourceLink.innerHTML = `<span class="fas fa-link fa-lg" style="font-size:revert"></span><span class="epub-btn-text"><a href="${json.source}" target="_blank"> SOURCE</a></span>`;
             main.appendChild(sourceLink);
         }
 
@@ -1586,7 +1573,10 @@ function replace(sourceUrl) {
 
         // add the title to the page
         var title = document.createElement('h1');
-        title.innerText = `${json.book}\nChapter ${json.chapter}: ${json.chapterTitle}`;
+        if (json.chapter == null || json.chapter == '' || json.chapter <= 0)
+            title.innerText = `${json.book}\n${json.chapterTitle}`
+        else
+            title.innerText = `${json.book}\nChapter ${json.chapter}: ${json.chapterTitle}`;
         article.appendChild(title);
 
         // add aside > ul > li > time
@@ -1862,7 +1852,7 @@ function tooltip() {
         tp.style.top = y + 'px';
     }
 
-    function moveTooltipToElement(element, side, distance=20) {
+    function moveTooltipToElement(element, side, distance = 20) {
         var rect = element.getBoundingClientRect();
 
         var sides = ['top', 'bottom', 'left', 'right'];
