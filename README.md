@@ -31,8 +31,8 @@ The userscript that makes use of this data can be installed easily on my [Usersc
 
 - Approximate Progress
 
-| Feature                           | Progress                           |
-| --------------------------------- | ---------------------------------- |
+| Feature                           | Progress                             |
+| --------------------------------- | ------------------------------------ |
 | Table of Contents (Deathworlders) | ![img](https://geps.dev/progress/95) |
 | Table of Contents (Overall)       | ![img](https://geps.dev/progress/80) |
 | Chapter Hijacking                 | ![](https://geps.dev/progress/34)    |
