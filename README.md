@@ -3,12 +3,12 @@
 Some stuff and things for a little web practice I've been doing.
 Will contain """backups""" of stories written by people on the HFY subreddit, among other things.
 
-The """backups""" are JSON file conversions of the original text posts, converted using a quick tool I made at https://jordy3d.github.io/projects/jsonthing.
+The """backups""" are JSON file conversions of the original text posts, converted using a quick tool I made at [this link](https://jordy3d.github.io/projects/jsonthing).
 These backups may have changes from the original posts to fix some formatting issues, but the content should be the same.
 
 ## Userscript
 
-The userscript that makes use of this data can be installed easily at https://jordy3d.github.io/userscripts, or manually copied from https://github.com/Jordy3D/DeathworldersTweaks/blob/main/userscript/Deathworlders.user.js.
+The userscript that makes use of this data can be installed easily on my [Userscripts page](https://jordy3d.github.io/userscripts), or manually copied [from here](https://github.com/Jordy3D/DeathworldersTweaks/blob/main/userscript/Deathworlders.user.js).
 
 ### Features
 
@@ -20,22 +20,22 @@ The userscript that makes use of this data can be installed easily at https://jo
   - Link highlighting
   - Paragraph justification
 - Display the Chapter Cover at the top of the page on chapters that have one
-- Hijack https://deathworlders.com/books/ to laod backups of off-site Full Reading Order chapters on the site
+- Hijack https://deathworlders.com/books/ to load backups of off-site Full Reading Order chapters on the site
 
 ### To-Do
 
+- [X] Connect the Table of Contents to the Hijacked pages
 - [ ] Complete the Table of Contents
 - [ ] Add support for searching and/or filtering the Table of Contents
 - [ ] Fix some errors I saw once with some of the above tweaks that I haven't found again cuz I forgot which chapter they were on
-- [X] Connect the Table of Contents to the Hijacked pages
 
-### Approximate Progress
+- Approximate Progress
 
 | Feature                           | Progress                           |
 | --------------------------------- | ---------------------------------- |
 | Table of Contents (Deathworlders) | ![img](https://geps.dev/progress/95) |
-| Table of Contents (Overall)       | ![img](https://geps.dev/progress/60) |
-| Chapter Hijacking                 | ![](https://geps.dev/progress/17)    |
+| Table of Contents (Overall)       | ![img](https://geps.dev/progress/80) |
+| Chapter Hijacking                 | ![](https://geps.dev/progress/34)    |
 
 ## Credit
 
