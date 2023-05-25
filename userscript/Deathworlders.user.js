@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.20.0
+// @version      0.21.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -22,7 +22,7 @@
 //          - Added a way for new settings to be added without overwriting old settings (hopefully)
 //          - Added a setting for adding a cover image
 //          - Organized settings into categories
-//          - Fixed a bug where non-paragrapgh elements were being justified
+//          - Fixed a bug where non-paragraph elements were being justified
 // 0.6      - Added a setting for fancy chat log
 //              - Setting for keeping the ++NAME++ flavour in the chat log
 //              - Setting for rounded system messages
@@ -83,15 +83,15 @@
 //          - Fixed an issue with tooltip positioning horizontally
 // 0.20     - Removed the need for # in the URL for hijacking, making it appear more natural
 //          - Made Source button open in a new tab
+// 0.21     - Added a setting to replace instances of __ with a line break
+//          - Hid the alternate text style as it was being a pain
+//          - Reworked the code massively to stop looking for things repeatedly
 //
 // ===== End Changelog =====
 
 // ===== Variables =====
 
-var conversationSet = false;
 var conversationScan = 3;
-var chatLogSet = false;
-var breaksForced = false;
 
 var tocJSON = null;
 
@@ -114,8 +114,8 @@ defaultSettings.push({ name: 'fancyChatLogRoundedSystem', value: true, fancyText
 defaultSettings.push({ name: 'tableOfContents', value: true, fancyText: 'Table of Contents', tag: 'Function' });
 defaultSettings.push({ name: 'highlightLinks', value: true, fancyText: 'Highlight Links in Text', tag: 'Style' });
 // defaultSettings.push({ name: 'useAltLinks', value: true, fancyText: 'Use Alt Links (Hijack /books/)', tag: 'Function' });
-defaultSettings.push({ name: 'alternateTextMode', value: false, fancyText: 'Alternate Text Mode', tag: 'Style', tooltip: 'Attempts to make the text more readable for some people.' });
-
+// defaultSettings.push({ name: 'alternateTextMode', value: false, fancyText: 'Alternate Text Mode', tag: 'Style', tooltip: 'Attempts to make the text more readable for some people.' });
+defaultSettings.push({ name: 'fixUnderscoreBreaks', value: true, fancyText: 'Fix Underscore Breaks', tag: 'Fix', tooltip: 'Replace __ with a proper section-breaking line' });
 // defaultSettings.push({ name: 'testSetting', value: false, fancyText: 'Test Setting', tag: 'Test', tooltip: 'Test tooltip.' });
 
 var settings = [];
@@ -146,10 +146,6 @@ setInterval(function () {
     if (window.location.href == 'https://deathworlders.com/') return;
 
     addCover();
-    setConversationElement();
-    setChatLogElement();
-
-    forceBreaks();
 }, 200);
 
 function reloadOnURLChange() {
@@ -193,8 +189,10 @@ function initialize() {
 
         hijackChapter();
 
-        if (settings.find(x => x.name === 'alternateTextMode').value)
-            setTimeout(halfbold, 1000);
+        setConversationElement();
+        setChatLogElement();
+
+        everyParagraphShould();
     }
 }
 
@@ -590,20 +588,27 @@ function addCover() {
     document.head.appendChild(style);
 }
 
-function setConversationElement() {
-    if (conversationSet) return;
+function everyParagraphShould() {
+    forEachParagraph(function (paragraph) {
+        forceBreaks(paragraph);
 
+        if (settings.find(x => x.name === 'fixUnderscoreBreaks').value)
+            replaceUnderscoreBreaks(paragraph);
+
+        // if (settings.find(x => x.name === 'alternateTextMode').value)
+        //     halfbold(paragraph);
+
+    });
+}
+
+function setConversationElement() {
     // if no article is found, return
     var article = document.querySelector('main>article');
     if (!article) return;
 
     // find all .p tags that only contain em tags and/or br tags, and not their own text, and are not just <p></p>
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        var pTag = pTags[i];
+    forEachParagraph(function (pTag) {
         var emTags = pTag.querySelectorAll('em');
-        // if (emTags.length == 0) continue;
-
         var brTags = pTag.querySelectorAll('br');
 
         // pTag.classList.add(`em-${emTags.length}`);
@@ -611,22 +616,19 @@ function setConversationElement() {
         // pTag.classList.add(`p-${pTag.childNodes.length}`);
 
         if (emTags.length + (brTags.length * 2) == pTag.childNodes.length || (emTags.length == 0 && brTags.length > 0)) {
-
             // if pTag doesn't contain strong
             if (pTag.querySelectorAll('strong').length == 0)
                 pTag.classList.add('consider');
         }
-    }
+    });
 
-    // find all divs with the style attribute text-align: right and add the class conversation
-    var divs = document.querySelectorAll('div[style="text-align: right"]');
-    for (var i = 0; i < divs.length; i++) {
-        var div = divs[i];
+    forEachQuery('div[style="text-align: right"]', function (div) {
         div.classList.add('conversation');
         div.classList.add('right');
-    }
+    });
 
     // search through every child of the main>article and remove every .conversation that isn't within 3 of another .conversation
+    // THIS MAY BE REVISEABLE TO BE MORE EFFICIENT
     var article = document.querySelector('main>article');
     var children = [];
     // set children to all immediate children of article
@@ -650,77 +652,81 @@ function setConversationElement() {
     }
 
     // go through every .conversation.right and merge it with the previous .conversation.right if it starts with a lowercase letter
-    var conversations = document.querySelectorAll('.conversation.right');
-    for (var i = 0; i < conversations.length; i++) {
-        var conversation = conversations[i];
-        var previous = conversations[i - 1];
+    forEachQuery('.conversation.right', function (conversation) {
+        // get the previous element
+        var previous = conversation.previousElementSibling;
 
-        if (previous) {
-            var previousText = previous.innerText;
-            var conversationText = conversation.innerText;
+        if (!previous) return;
+        if (previous.nodeType != 1) return;
 
-            if (conversationText[0] == conversationText[0].toLowerCase()) {
-                previous.innerText = previousText + ' ' + conversationText;
-                conversation.remove();
-            }
+        var previousText = previous.innerText;
+        var conversationText = conversation.innerText;
+
+        if (conversationText[0] == conversationText[0].toLowerCase()) {
+            // merge the two conversations
+            previous.innerText = `${previousText} ${conversationText}`;
+            conversation.remove();
         }
-    }
-
+    });
+    
     // find every <br> that is immediately after a .conversation and remove it
-    var brs = document.querySelectorAll('.conversation+br');
-    for (var i = 0; i < brs.length; i++) {
-        var br = brs[i];
+    forEachQuery('.conversation+br', function (br) {
         br.remove();
-    }
+    });
 
     // find every <p></p> and remove it
-    var ps = document.querySelectorAll('p');
-    for (var i = 0; i < ps.length; i++) {
-        var p = ps[i];
-        if (p.innerHTML == '') p.remove();
-    }
+    forEachQuery('p', function (p) {
+        if (p.innerText == '') 
+            p.remove();
+    });
 
     // remove all .consider
-    var considers = document.querySelectorAll('.consider');
-    for (var i = 0; i < considers.length; i++) {
-        var consider = considers[i];
+    forEachQuery('.consider', function (consider) {
         consider.classList.remove('consider');
-    }
-
-    conversationSet = true;
+    });
 }
 
 function setChatLogElement() {
-    if (chatLogSet) return;
-
     // if no article is found, return
     var article = document.querySelector('main>article');
     if (!article) return;
 
-    // find all p tags that contain a strong tag, and add the class chat-log if the first child starts with ++
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        var pTag = pTags[i];
-        var strongTags = pTag.querySelectorAll('strong');
-        if (strongTags.length == 0) continue;
+    // find all the paragraphs and do things to them
+    forEachParagraph(function (pTag) {
+        createChatLogs(pTag);
+        removePlusandColonFromChatLog(pTag);
+        splitChatLogIntoSpan(pTag);
+        addCLStoSystemMessage(pTag);
+        addCLStoAllCapsStrong(pTag);
+        addCLSifQualified(pTag);
+    });
+    forEachParagraph(function (pTag, pTags) {
+        // this one has to be separate because it needs everything else to be done first
+        removeLoneCLS(pTag, pTags);
+    });
+
+    function createChatLogs(p)
+    {
+        var strongTags = p.querySelectorAll('strong');
+        if (strongTags.length == 0) return;
 
         // get the first child
-        var firstChild = pTag.childNodes[0];
-        if (pTag.innerText.toUpperCase().includes('END CHAPTER') || pTag.innerText.toUpperCase().includes('END OF PART')) continue;
+        var firstChild = p.childNodes[0];
+        if (p.innerText.toUpperCase().includes('END CHAPTER') || p.innerText.toUpperCase().includes('END OF PART')) return;
 
         // if the first child is a strong and the text starts with ++, add the class chat-log
         if (firstChild.tagName == 'STRONG'
             && (firstChild.innerText.startsWith('++') || firstChild.innerText.startsWith('+'))) {
             // if the text doesn't contain "END CHAPTER", add the class "chat-log
-            pTag.classList.add('chat-log');
+            p.classList.add('chat-log');
         }
     }
 
-    // in all the chat-log p tags, remove the ++ and : from the first child, and add the class chat-log-name
-    var chatLogs = document.querySelectorAll('.chat-log');
-    for (var i = 0; i < chatLogs.length; i++) {
-        var chatLog = chatLogs[i];
-        var firstChild = chatLog.childNodes[0];
+    function removePlusandColonFromChatLog(p)
+    {
+        if (!p.classList.contains('chat-log')) return;
+        
+        var firstChild = p.childNodes[0];
 
         var name = firstChild.innerText;
         name = name.replace('++', '');
@@ -732,35 +738,31 @@ function setChatLogElement() {
         firstChild.classList.add('chat-log-name');
     }
 
-    // in all chat-log p tags, place everything that isn't the first child into a new span
-    var chatLogs = document.querySelectorAll('.chat-log');
-    for (var i = 0; i < chatLogs.length; i++) {
-        var chatLog = chatLogs[i];
-        var firstChild = chatLog.childNodes[0];
+    function splitChatLogIntoSpan(p)
+    {
+        if (!p.classList.contains('chat-log')) return;
 
         var span = document.createElement('span');
         span.classList.add('chat-log-text');
 
-        while (chatLog.childNodes.length > 1) {
-            var child = chatLog.childNodes[1];
+        while (p.childNodes.length > 1) {
+            var child = p.childNodes[1];
             span.appendChild(child);
         }
 
-        chatLog.appendChild(span);
+        p.appendChild(span);
     }
 
-    // find all p tags that contain a strong tag that starts with SYSTEM or ERROR and add the class chat-log-system
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        var pTag = pTags[i];
-        var strongTags = pTag.querySelectorAll('strong');
-        if (strongTags.length == 0) continue;
+    function addCLStoSystemMessage(p)
+    {
+        var strongTags = p.querySelectorAll('strong');
+        if (strongTags.length == 0) return;
 
         // get the first child
-        var firstChild = pTag.childNodes[0];
+        var firstChild = p.childNodes[0];
         // if the first child is a strong that starts with SYSTEM or ERROR, add the class chat-log-system
         if (firstChild.tagName == 'STRONG' && (firstChild.innerText.startsWith('SYSTEM') || firstChild.innerText.startsWith('ERROR')))
-            pTag.classList.add('chat-log-system');
+            p.classList.add('chat-log-system');
 
         for (var j = 0; j < strongTags.length; j++) {
             var strongTag = strongTags[j];
@@ -768,7 +770,7 @@ function setChatLogElement() {
                 strongTag.innerText.startsWith('ERROR') ||
                 strongTag.innerText.toUpperCase().startsWith('SYSTEM NOTIFICATION') ||
                 strongTag.innerText.toUpperCase().startsWith('EMOTE CHANNEL')) {
-                pTag.classList.add('chat-log-system');
+                p.classList.add('chat-log-system');
 
                 // replace SYSTEM:: with SYSTEM:
                 strongTag.innerText = strongTag.innerText.replace('::', ':');
@@ -779,91 +781,79 @@ function setChatLogElement() {
         }
     }
 
-    // find every p tag that is only an all-caps strong tag and add the class chat-log-system
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        var pTag = pTags[i];
+    function addCLStoAllCapsStrong(p)
+    {
+        if (p.classList.contains('chat-log')) return;
 
-        if (pTag.classList.contains('chat-log')) continue;
+        var strongTags = p.querySelectorAll('strong');
+        if (strongTags.length == 0) return;
 
-        var strongTags = pTag.querySelectorAll('strong');
-        if (strongTags.length == 0) continue;
-
-        var textContent = pTag.innerText;
+        var textContent = p.innerText;
         var textContentNormalised = textContent.toUpperCase();
 
         // if text is only numbers, skip
-        if (/^\d+$/.test(textContentNormalised)) continue;
+        if (/^\d+$/.test(textContentNormalised)) return;
 
         if (textContentNormalised.includes('END CHAPTER')) {
-            pTag.classList.add('chapter-end');
-            continue;
+            p.classList.add('chapter-end');
+            return;
         }
 
         if (textContent == textContentNormalised)
-            pTag.classList.add('chat-log-system');
+            p.classList.add('chat-log-system');
 
         if (textContentNormalised.includes('SESSION #'))
-            pTag.classList.add('chat-log-system');
+            p.classList.add('chat-log-system');
 
         // if the text matches SESSION XXX where X is a number using regex, add the class chat-log-system
         var regex = /SESSION\s\d+/g;
         if (regex.test(textContentNormalised))
-            pTag.classList.add('chat-log-system');
+            p.classList.add('chat-log-system');
     }
 
-    // find every p tag that is preceeded by a .chat-log-system
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        var pTag = pTags[i];
-        var previous = pTag.previousElementSibling;
+    function addCLSifQualified(p)
+    {
+        var previous = p.previousElementSibling;
         if (previous && previous.classList.contains('chat-log-system')) {
             // if the first word ends with :, add the class chat-log-system
-            var text = pTag.innerText;
+            var text = p.innerText;
             var firstWord = text.split(' ')[0];
+            
             if (firstWord.endsWith(':'))
-                pTag.classList.add('chat-log-system');
+                p.classList.add('chat-log-system');
         }
     }
 
-    // find all .chat-log-system elements and remove the class if there isn't a .chat-log-system element within 3 elements
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        if (!pTags[i].classList.contains('chat-log-system')) continue;
+    function removeLoneCLS(p, arr)
+    {
+        if (!p.classList.contains('chat-log-system')) return;
 
-        var chatLogSystem = pTags[i];
+        // turn arr into an array
+        arr = Array.prototype.slice.call(arr);
 
         var found = false;
-        found = findClassWithinDistance(pTags, i, conversationScan, ['chat-log', 'chat-log-system']);
+        // get the position of the p tag in the array
+        let i = arr.indexOf(p);
+        found = findClassWithinDistance(arr, i, conversationScan, ['chat-log', 'chat-log-system']);
 
         if (!found)
-            chatLogSystem.classList.remove('chat-log-system');
+            p.classList.remove('chat-log-system');
     }
-
-    chatLogSet = true;
 }
 
-function forceBreaks() {
-    if (breaksForced) return;
+function forceBreaks(paragraph) {
+    // if the p tag contains a br, skip
+    if (paragraph.querySelector('br')) return;
 
-    // find all p tags
-    var pTags = document.querySelectorAll('p');
-    for (var i = 0; i < pTags.length; i++) {
-        // if the p tag contains a br, skip
-        if (pTags[i].querySelector('br')) continue;
-
-        // if the p tag contains a strong tag that contains Date Point, add a br after it
-        var strongTags = pTags[i].querySelectorAll('strong');
-        for (var j = 0; j < strongTags.length; j++) {
-            var strongTag = strongTags[j];
-            if (strongTag.innerText.includes('Date Point')) {
-                var br = document.createElement('br');
-                strongTag.after(br);
-            }
+    // if the p tag contains a strong tag that contains Date Point, add a br after the strong tag
+    var strongTags = paragraph.querySelectorAll('strong');
+    for (var j = 0; j < strongTags.length; j++) {
+        var strongTag = strongTags[j];
+        if (strongTag.innerText.includes('Date Point')) {
+            var br = document.createElement('br');
+            paragraph.insertBefore(br, strongTag.nextSibling);
         }
     }
-
-    breaksForced = true;
 }
 
 function loadCSS() {
@@ -1636,48 +1626,64 @@ function replace(sourceUrl) {
     };
 }
 
-function halfbold() {
-    // find all <p> tags
-    var paragraphs = document.querySelectorAll('p');
+function halfbold(paragraph) {
+    var words = paragraph.innerHTML.split(' ');
 
-    // for each <p> tag
-    for (var i = 0; i < paragraphs.length; i++) {
-        var paragraph = paragraphs[i];
-        var words = paragraph.innerHTML.split(' ');
+    for (var j = 0; j < words.length; j++) {
+        var word = words[j];
 
-        for (var j = 0; j < words.length; j++) {
-            var word = words[j];
+        if (word == '') continue;
 
-            if (word == '') continue;
+        // if word starts with <X> using regex, keep the tag off to the side and add it back later
+        var startTag = '';
+        var endTag = '';
 
-            // if word starts with <X> using regex, keep the tag off to the side and add it back later
-            var startTag = '';
-            var endTag = '';
-
-            var wordHasEndItalic = word.includes('</i>');
-            if (wordHasEndItalic) {
-                word = word.replace('</i>', '');
-                endTag = '</i>';
-            }
-
-            var wordHasStartItalic = word.includes('<i>');
-            if (wordHasStartItalic) {
-                word = word.replace('<i>', '');
-                startTag = '<i>';
-            }
-
-            // add <hb> tags to the front and middle of the word
-            var firstHalf = word.substring(0, word.length / 2);
-            var secondHalf = word.substring(word.length / 2);
-
-            words[j] = `${startTag}<hb>${firstHalf}</hb>${secondHalf}${endTag}`;
+        var startMatch = word.match(/^<\w+>/);
+        if (startMatch) {
+            startTag = startMatch[0];
+            word = word.substring(startTag.length);
+        }
+        var endMatch = word.match(/<\/\w+>$/);
+        if (endMatch) {
+            endTag = endMatch[0];
+            word = word.substring(0, word.length - endTag.length);
         }
 
-        paragraph.innerHTML = words.join(' ');
+        console.log(`startTag: ${startTag}, endTag: ${endTag}, word: ${word}`);
+
+        // check if the two tags are the same
+        if (startTag != endTag.replace('/', '')) continue;
+
+        // add <hb> tags to the front and middle of the word
+        var middle = Math.ceil(word.length / 2);
+        var firstHalf = word.substring(0, middle);
+        var secondHalf = word.substring(middle);
+
+        words[j] = `${startTag}<hb>${firstHalf}</hb>${secondHalf}${endTag}`;
     }
+
+    paragraph.innerHTML = words.join(' ');
+}
+
+function replaceUnderscoreBreaks(paragraph) {
+    // if the paragraph is only underscores, replace the entire paragraph with <hr>
+    if (paragraph.innerHTML.match(/^_{2,}$/))
+        paragraph.outerHTML = '<hr>';
 }
 
 // ===== HELPER FUNCTIONS =====
+
+// create a function that gets all p elements then calls a callback function on each paragraph
+function forEachParagraph(callback) {
+    return forEachQuery('p', callback);
+}
+
+function forEachQuery(query, callback)
+{
+    let elements = document.querySelectorAll(query);
+    for (var i = 0; i < elements.length; i++)
+        callback(elements[i], elements);
+}
 
 function findClassWithinDistance(array, currentIndex, distance, searchClass) {
     let classes = [searchClass].flat();
@@ -1693,7 +1699,7 @@ function findClassWithinDistance(array, currentIndex, distance, searchClass) {
             if (ref >= array.length) continue; // skip if we're going to go out of bounds
             if (j == 0) continue; // skip if we're looking at the element itself
 
-            let sibling = array[ref];
+            let sibling = array[ref]
 
             if (sibling && sibling.classList && sibling.classList.contains(className))
                 return true;
@@ -1901,4 +1907,3 @@ function tooltip() {
 
     return tp;
 }
-
