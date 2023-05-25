@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.21.0
+// @version      0.21.1
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -84,6 +84,9 @@
 // 0.20     - Removed the need for # in the URL for hijacking, making it appear more natural
 //          - Made Source button open in a new tab
 // 0.21     - Added a setting to replace instances of __ with a line break
+//          - Added tooltips to the settings menu items, explaining what they do and if they require a refresh
+//          - Fixed an issue with justification not working when the cover is disabled
+//          - Fixed an issue with justification applying to conversation elements
 //          - Hid the alternate text style as it was being a pain
 //          - Reworked the code massively to stop looking for things repeatedly
 //
@@ -100,22 +103,22 @@ var tocJSON = null;
 // ===== Settings =====
 
 var defaultSettings = [];
-defaultSettings.push({ name: 'replaceSectionEndHeaders', value: true, fancyText: 'Replace Section End Headers', tag: 'Fix' });
-defaultSettings.push({ name: 'darkScrollbars', value: true, fancyText: 'Dark Scrollbar', tag: 'Style' });
-defaultSettings.push({ name: 'fixCodeBlocks', value: true, fancyText: 'Fix Code Blocks', tag: 'Fix', tooltip: 'Stops code blocks from needing to be scrolled horizontally' });
-defaultSettings.push({ name: 'fixBlockquotes', value: true, fancyText: 'Fix Blockquotes', tag: 'Fix', tooltip: 'Makes blockquote quote marks appear correctly' });
-defaultSettings.push({ name: 'fancySMS', value: true, fancyText: 'Fancy SMS', tag: 'Style', tooltip: 'Makes certain conversations look like SMS messages' });
-defaultSettings.push({ name: 'fancySMSBubbles', value: true, fancyText: 'Fancy SMS Bubbles', tag: 'Style', tooltip: 'Adds little bubbles to the SMS messages' });
-defaultSettings.push({ name: 'justifyParagraphs', value: true, fancyText: 'Justify Paragraphs', tag: 'Style' });
-defaultSettings.push({ name: 'addCover', value: true, fancyText: 'Add Cover', tag: 'Function' });
-defaultSettings.push({ name: 'fancyChatLog', value: true, fancyText: 'Fancy Chat Log', tag: 'Style', tooltip: 'Makes certain conversations look more like an IRC chat log' });
-defaultSettings.push({ name: 'fancyChatLogKeep++', value: false, fancyText: 'Fancy Chat Log Keep ++', tag: 'Style', tooltip: 'Replaces the ++ formatting for user names' });
-defaultSettings.push({ name: 'fancyChatLogRoundedSystem', value: true, fancyText: 'Fancy Chat Log Rounded System', tag: 'Style' });
-defaultSettings.push({ name: 'tableOfContents', value: true, fancyText: 'Table of Contents', tag: 'Function' });
-defaultSettings.push({ name: 'highlightLinks', value: true, fancyText: 'Highlight Links in Text', tag: 'Style' });
+defaultSettings.push({ name: 'replaceSectionEndHeaders', value: true, fancyText: 'Replace Section End Headers', tag: 'Fix', tooltip: 'Adds an underline below section end headers (some, anyway). \nUpdates live.' });
+defaultSettings.push({ name: 'darkScrollbars', value: true, fancyText: 'Dark Scrollbar', tag: 'Style', tooltip: 'Makes the scrollbar dark. \nUpdates live.' });
+defaultSettings.push({ name: 'fixCodeBlocks', value: true, fancyText: 'Fix Code Blocks', tag: 'Fix', tooltip: 'Stops code blocks from needing to be scrolled horizontally. \nUpdates live.' });
+defaultSettings.push({ name: 'fixBlockquotes', value: true, fancyText: 'Fix Blockquotes', tag: 'Fix', tooltip: 'Makes blockquote quote marks appear correctly. \nUpdates live.' });
+defaultSettings.push({ name: 'fancySMS', value: true, fancyText: 'Fancy SMS', tag: 'Style', tooltip: 'Makes certain conversations look like SMS messages. \nUpdates live, but messes with HTML.' });
+defaultSettings.push({ name: 'fancySMSBubbles', value: true, fancyText: 'Fancy SMS Bubbles', tag: 'Style', tooltip: 'Adds little bubbles to the SMS messages.\nUpdates live.' });
+defaultSettings.push({ name: 'justifyParagraphs', value: true, fancyText: 'Justify Paragraphs', tag: 'Style', tooltip: 'Justifies paragraphs.\nUpdates live.' });
+defaultSettings.push({ name: 'addCover', value: true, fancyText: 'Add Cover', tag: 'Function', tooltip: 'Adds a cover to the top of the page, if one exists for the chapter.\nUpdates live.' });
+defaultSettings.push({ name: 'fancyChatLog', value: true, fancyText: 'Fancy Chat Log', tag: 'Style', tooltip: 'Makes certain conversations look more like an IRC chat log.\nUpdates live, but messes with HTML.' });
+defaultSettings.push({ name: 'fancyChatLogKeep++', value: false, fancyText: 'Fancy Chat Log Keep ++', tag: 'Style', tooltip: 'Replaces the ++ formatting for user names.\nUpdates live' });
+defaultSettings.push({ name: 'fancyChatLogRoundedSystem', value: true, fancyText: 'Fancy Chat Log Rounded System', tag: 'Style', tooltip: 'Rounds the system messages.\nUpdates live.' });
+defaultSettings.push({ name: 'tableOfContents', value: true, fancyText: 'Table of Contents', tag: 'Function', tooltip: 'Adds a table of contents to the page.\Requires a page refresh.' });
+defaultSettings.push({ name: 'highlightLinks', value: true, fancyText: 'Highlight Links in Text', tag: 'Style', tooltip: 'Highlights links in the text.\nUpdates live.' });
 // defaultSettings.push({ name: 'useAltLinks', value: true, fancyText: 'Use Alt Links (Hijack /books/)', tag: 'Function' });
 // defaultSettings.push({ name: 'alternateTextMode', value: false, fancyText: 'Alternate Text Mode', tag: 'Style', tooltip: 'Attempts to make the text more readable for some people.' });
-defaultSettings.push({ name: 'fixUnderscoreBreaks', value: true, fancyText: 'Fix Underscore Breaks', tag: 'Fix', tooltip: 'Replace __ with a proper section-breaking line' });
+defaultSettings.push({ name: 'fixUnderscoreBreaks', value: true, fancyText: 'Fix Underscore Breaks', tag: 'Fix', tooltip: 'Replace __ with a proper section-breaking line.\nRequires a page refresh.' });
 // defaultSettings.push({ name: 'testSetting', value: false, fancyText: 'Test Setting', tag: 'Test', tooltip: 'Test tooltip.' });
 
 var settings = [];
@@ -668,7 +671,7 @@ function setConversationElement() {
             conversation.remove();
         }
     });
-    
+
     // find every <br> that is immediately after a .conversation and remove it
     forEachQuery('.conversation+br', function (br) {
         br.remove();
@@ -676,7 +679,7 @@ function setConversationElement() {
 
     // find every <p></p> and remove it
     forEachQuery('p', function (p) {
-        if (p.innerText == '') 
+        if (p.innerText == '')
             p.remove();
     });
 
@@ -705,8 +708,7 @@ function setChatLogElement() {
         removeLoneCLS(pTag, pTags);
     });
 
-    function createChatLogs(p)
-    {
+    function createChatLogs(p) {
         var strongTags = p.querySelectorAll('strong');
         if (strongTags.length == 0) return;
 
@@ -722,10 +724,9 @@ function setChatLogElement() {
         }
     }
 
-    function removePlusandColonFromChatLog(p)
-    {
+    function removePlusandColonFromChatLog(p) {
         if (!p.classList.contains('chat-log')) return;
-        
+
         var firstChild = p.childNodes[0];
 
         var name = firstChild.innerText;
@@ -738,8 +739,7 @@ function setChatLogElement() {
         firstChild.classList.add('chat-log-name');
     }
 
-    function splitChatLogIntoSpan(p)
-    {
+    function splitChatLogIntoSpan(p) {
         if (!p.classList.contains('chat-log')) return;
 
         var span = document.createElement('span');
@@ -753,8 +753,7 @@ function setChatLogElement() {
         p.appendChild(span);
     }
 
-    function addCLStoSystemMessage(p)
-    {
+    function addCLStoSystemMessage(p) {
         var strongTags = p.querySelectorAll('strong');
         if (strongTags.length == 0) return;
 
@@ -781,8 +780,7 @@ function setChatLogElement() {
         }
     }
 
-    function addCLStoAllCapsStrong(p)
-    {
+    function addCLStoAllCapsStrong(p) {
         if (p.classList.contains('chat-log')) return;
 
         var strongTags = p.querySelectorAll('strong');
@@ -811,21 +809,19 @@ function setChatLogElement() {
             p.classList.add('chat-log-system');
     }
 
-    function addCLSifQualified(p)
-    {
+    function addCLSifQualified(p) {
         var previous = p.previousElementSibling;
         if (previous && previous.classList.contains('chat-log-system')) {
             // if the first word ends with :, add the class chat-log-system
             var text = p.innerText;
             var firstWord = text.split(' ')[0];
-            
+
             if (firstWord.endsWith(':'))
                 p.classList.add('chat-log-system');
         }
     }
 
-    function removeLoneCLS(p, arr)
-    {
+    function removeLoneCLS(p, arr) {
         if (!p.classList.contains('chat-log-system')) return;
 
         // turn arr into an array
@@ -885,6 +881,9 @@ function loadCSS() {
         }
 
         hr { width: 100%; }
+
+        /* this just makes the .conversation.right less shit when disabled */
+        .conversation.right { margin-left: 45%; }
     `;
 
     // for settings that are true, add the CSS using a switch statement
@@ -941,7 +940,7 @@ function loadCSS() {
                         .conversation.left,
 
                         .conversation + p:not(:has(+p))
-                      {
+                        {
                             width: fit-content;
                             max-width: 50%;
 
@@ -956,7 +955,7 @@ function loadCSS() {
                         }
 
                         .conversation.left + p:has(+.conversation.right)
-                      {
+                        {
                             background: unset !important;
                             max-width: unset;
                             padding: unset;
@@ -966,7 +965,7 @@ function loadCSS() {
                         }
                         .conversation.left + p:has(+.conversation.right)::before,
                         .conversation.left + p:has(+.conversation.right)::after
-                      {
+                        {
                             display: none;
                         }
 
@@ -974,24 +973,28 @@ function loadCSS() {
                         .conversation.left br,
 
                         .conversation + br
-                      {
+                        {
                             display: none;
                         }
 
+                        .conversation.left { text-align: left; }
+
                         .conversation.right
-                      {
+                        {
                             background: #159eec !important;
                             margin-left: auto;
+
+                            text-align: right;
 
                             border-radius: 15px 15px 5px 15px;
                         }
                         .conversation.right:has(+.conversation.right)
-                      {
+                        {
                             border-radius: 15px 15px 5px 15px;
                             margin-bottom: 0;
                         }
                         .conversation.right + .conversation.right
-                      {
+                        {
                             border-radius: 15px 5px 5px 15px;
                             margin-top: 5px;
                         }
@@ -999,7 +1002,7 @@ function loadCSS() {
                         .conversation.left, .conversation.left em,
 
                         .conversation + p:not(:has(+p))
-                      {
+                        {
                             background: #d0d0d0 !important;
                             color: black;
                             border-radius: 15px 15px 15px 5px;
@@ -1018,7 +1021,7 @@ function loadCSS() {
                         .conversation.left::before,
 
                         .conversation + p:not(:has(+p))::before
-                      {
+                        {
                             content: "";
                             border-radius: 50%;
                             height: 32px;
@@ -1035,7 +1038,7 @@ function loadCSS() {
                         .conversation.left::after,
 
                         .conversation + p:not(:has(+p))::after
-                      {
+                        {
                             content: "";
                             border-radius: 50%;
                             height: 15px;
@@ -1054,7 +1057,7 @@ function loadCSS() {
 
                         body:not(.inverted) .conversation.right:not(:has(+.conversation.right))::after,
                         body:not(.inverted) .conversation.right + p::after
-                      {
+                        {
                             border-color: #FFFFFF;
                         }
 
@@ -1069,7 +1072,7 @@ function loadCSS() {
                     break;
                 case 'justifyParagraphs':
                     style.innerHTML += `
-                        .bane-article > p { text-align: justify; }
+                        article > p { text-align: justify; }
                     `;
                     break;
                 case 'fancyChatLog':
@@ -1678,8 +1681,7 @@ function forEachParagraph(callback) {
     return forEachQuery('p', callback);
 }
 
-function forEachQuery(query, callback)
-{
+function forEachQuery(query, callback) {
     let elements = document.querySelectorAll(query);
     for (var i = 0; i < elements.length; i++)
         callback(elements[i], elements);
