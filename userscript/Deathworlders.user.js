@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.21.1
+// @version      0.21.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -600,7 +600,12 @@ function everyParagraphShould() {
 
         // if (settings.find(x => x.name === 'alternateTextMode').value)
         //     halfbold(paragraph);
-
+    });
+    // this one is separate because it needs to be done after all the others
+    forEachParagraph(function (paragraph) {
+        // if the paragraph is empty, remove it
+        if (paragraph.innerHTML.trim() == '')
+            paragraph.remove();
     });
 }
 
@@ -1672,6 +1677,10 @@ function replaceUnderscoreBreaks(paragraph) {
     // if the paragraph is only underscores, replace the entire paragraph with <hr>
     if (paragraph.innerHTML.match(/^_{2,}$/))
         paragraph.outerHTML = '<hr>';
+
+    // if the paragraph ends with underscores, remove them and add <hr> after
+    else if (paragraph.innerHTML.match(/_{2,}$/))
+        paragraph.outerHTML = paragraph.outerHTML.replace('__', '<hr>');
 }
 
 // ===== HELPER FUNCTIONS =====
