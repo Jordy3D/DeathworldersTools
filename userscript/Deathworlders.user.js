@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.21.2
+// @version      0.21.3
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -1676,6 +1676,10 @@ function halfbold(paragraph) {
 function replaceUnderscoreBreaks(paragraph) {
     // if the paragraph is only underscores, replace the entire paragraph with <hr>
     if (paragraph.innerHTML.match(/^_{2,}$/))
+        paragraph.outerHTML = '<hr>';
+
+    // if the paragraph matches —, replace it with <hr>
+    else if (paragraph.innerHTML.match(/^—$/))
         paragraph.outerHTML = '<hr>';
 
     // if the paragraph ends with underscores, remove them and add <hr> after
