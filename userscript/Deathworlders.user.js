@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.21.3
+// @version      0.21.4
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -85,6 +85,7 @@
 //          - Made Source button open in a new tab
 // 0.21     - Added a setting to replace instances of __ with a line break
 //          - Added tooltips to the settings menu items, explaining what they do and if they require a refresh
+//          - Added support for code blocks in the hijacked chapters
 //          - Fixed an issue with justification not working when the cover is disabled
 //          - Fixed an issue with justification applying to conversation elements
 //          - Hid the alternate text style as it was being a pain
@@ -921,9 +922,10 @@ function loadCSS() {
                 case 'fixCodeBlocks':
                     style.innerHTML += `
                         pre
-                      {
+                        {
                             background: black !important;
                             border-radius: 10px;
+                            overflow-x: hidden !important;
 
                             box-shadow: none !important;
                         }
@@ -1623,6 +1625,14 @@ function replace(sourceUrl) {
 
             // count words to calculate reading time
             wordCount += paragraph.text.split(' ').length;
+
+            // if the p is a code block, wrap it in a pre
+            if (paragraph.tag == 'code') {
+                var pre = document.createElement('pre');
+                pre.appendChild(p);
+                article.appendChild(pre);
+                continue;
+            }
 
             article.appendChild(p);
         }
