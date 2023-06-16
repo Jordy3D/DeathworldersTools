@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.22.0
+// @version      0.22.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -633,8 +633,7 @@ function setConversationElement() {
         }
 
         // if pTag's html starts with <code>, add .coarse
-        if (pTag.innerHTML.trim().startsWith('<code>'))
-        {
+        if (pTag.innerHTML.trim().startsWith('<code>')) {
             pTag.classList.add('consider');
             pTag.classList.add('coarse');
         }
@@ -646,9 +645,7 @@ function setConversationElement() {
 
         // if div's html starts with <code>, add .coarse
         if (div.innerHTML.trim().startsWith('<code>'))
-        {
             div.classList.add('coarse');
-        }
     });
 
     // search through every child of the main>article and remove every .conversation that isn't within 3 of another .conversation
@@ -715,15 +712,21 @@ function setConversationElement() {
     // remove all .consider
     forEachQuery('.consider', function (consider) {
         consider.classList.remove('consider');
-
-        // 
     });
 
-    // for all .coarse, remove the code element and just have the text in the paragraph
-    forEachQuery('.coarse', function (coarse) {
-        var code = coarse.querySelector('code');
-        var text = code.innerText;
-        coarse.innerHTML = text;
+    // for all .coarse, split each code into its own paragraph
+    forEachQuery('.coarse.left', function (coarse) {
+        var codes = coarse.querySelectorAll('code');
+        codes.forEach(function (code) {
+            var p = document.createElement('p');
+            p.classList.add('coarse');
+            p.classList.add('left');
+            p.classList.add('conversation');
+
+            p.innerHTML = code.innerHTML;
+            coarse.parentNode.insertBefore(p, coarse);
+        });
+        coarse.remove();
     });
 }
 
@@ -995,7 +998,7 @@ function loadCSS() {
                             position: relative;
                         }
 
-                        .conversation.left + p:has(+.conversation.right)
+                        .conversation.left + p:has(+.conversation.right):not(.conversation)
                         {
                             background: unset !important;
                             max-width: unset;
@@ -1016,6 +1019,11 @@ function loadCSS() {
                         .conversation + br
                         {
                             display: none;
+                        }
+
+                        .coarse br
+                        {
+                            display: unset !important;
                         }
 
                         .conversation.left { text-align: left; }
@@ -1051,6 +1059,17 @@ function loadCSS() {
                             font-style: normal !important;
                         }
 
+                        .conversation.left:has(+.conversation.left)
+                        {
+                            border-radius: 15px 15px 15px 5px;
+                            margin-bottom: 0;
+                        }
+                        .conversation.left + .conversation.left
+                        {
+                            border-radius: 5px 15px 15px 5px;
+                            margin-top: 5px;
+                        }
+
                         body:not(.inverted) .conversation.right { color: white; }
                     `;
                     break;
@@ -1059,7 +1078,7 @@ function loadCSS() {
                     if (!settings.find(x => x.name == 'fancySMS').value) break;
                     style.innerHTML += `
                         .conversation.right:not(:has(+.conversation.right))::before,
-                        .conversation.left::before,
+                        .conversation.left:not(:has(+.conversation.left))::before,
 
                         .conversation + p:not(:has(+p))::before
                         {
@@ -1076,7 +1095,7 @@ function loadCSS() {
                         }
 
                         .conversation.right:not(:has(+.conversation.right))::after,
-                        .conversation.left::after,
+                        .conversation.left:not(:has(+.conversation.left))::after,
 
                         .conversation + p:not(:has(+p))::after
                         {
