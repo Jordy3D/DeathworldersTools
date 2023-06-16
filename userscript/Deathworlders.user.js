@@ -9,7 +9,7 @@
 // @grant        none
 // ==/UserScript==
 
-// ===== Changelog =====
+// ==Changelog==
 //
 // 0.1      - Initial version
 //              - Adds cover image to the top of the article
@@ -91,7 +91,7 @@
 //          - Hid the alternate text style as it was being a pain
 //          - Reworked the code massively to stop looking for things repeatedly
 //
-// ===== End Changelog =====
+// ==/Changelog==
 
 // ===== Variables =====
 
@@ -629,11 +629,24 @@ function setConversationElement() {
             if (pTag.querySelectorAll('strong').length == 0)
                 pTag.classList.add('consider');
         }
+
+        // if pTag's html starts with <code>, add .coarse
+        if (pTag.innerHTML.trim().startsWith('<code>'))
+        {
+            pTag.classList.add('consider');
+            pTag.classList.add('coarse');
+        }
     });
 
     forEachQuery('div[style="text-align: right"]', function (div) {
         div.classList.add('conversation');
         div.classList.add('right');
+
+        // if div's html starts with <code>, add .coarse
+        if (div.innerHTML.trim().startsWith('<code>'))
+        {
+            div.classList.add('coarse');
+        }
     });
 
     // search through every child of the main>article and remove every .conversation that isn't within 3 of another .conversation
@@ -653,6 +666,10 @@ function setConversationElement() {
             var found = false;
             found = findClassWithinDistance(children, i, 3, 'conversation');
 
+            // if the child has .coarse, consider it found
+            if (child.classList.contains('coarse'))
+                found = true;
+
             if (found) {
                 child.classList.add('conversation');
                 child.classList.add('left');
@@ -665,8 +682,12 @@ function setConversationElement() {
         // get the previous element
         var previous = conversation.previousElementSibling;
 
+        // if this or the previous element has the coarse class, don't merge
+        if (conversation.classList.contains('coarse') || (previous && previous.classList.contains('coarse'))) return;
+
         if (!previous) return;
         if (previous.nodeType != 1) return;
+        if (previous.classList.contains('conversation') == false) return;
 
         var previousText = previous.innerText;
         var conversationText = conversation.innerText;
@@ -692,6 +713,15 @@ function setConversationElement() {
     // remove all .consider
     forEachQuery('.consider', function (consider) {
         consider.classList.remove('consider');
+
+        // 
+    });
+
+    // for all .coarse, remove the code element and just have the text in the paragraph
+    forEachQuery('.coarse', function (coarse) {
+        var code = coarse.querySelector('code');
+        var text = code.innerText;
+        coarse.innerHTML = text;
     });
 }
 
@@ -890,6 +920,8 @@ function loadCSS() {
 
         /* this just makes the .conversation.right less shit when disabled */
         .conversation.right { margin-left: 45%; }
+
+        body.inverted #container main article p code { color: black; }
     `;
 
     // for settings that are true, add the CSS using a switch statement
@@ -1075,6 +1107,11 @@ function loadCSS() {
                         .conversation.right::after { right: -44px; }
                         .conversation.left::after { left: -20px; }
                         .conversation + p:not(:has(+p))::after { left: -20px; }
+
+                        .conversation.coarse
+                        {
+                            font-family: monospace;
+                        }
                     `;
                     break;
                 case 'justifyParagraphs':
