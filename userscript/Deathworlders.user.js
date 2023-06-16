@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.21.4
+// @version      0.22.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -90,6 +90,8 @@
 //          - Fixed an issue with justification applying to conversation elements
 //          - Hid the alternate text style as it was being a pain
 //          - Reworked the code massively to stop looking for things repeatedly
+// 0.22     - Hambone tried to differentiate between dialogue elements like I already did with conversation elements, so I had to fix that
+//          - Fixed an issue with certain elements being unreadble in dark mode
 //
 // ==/Changelog==
 
