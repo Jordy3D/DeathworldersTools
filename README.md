@@ -1,5 +1,7 @@
 # Deathworlders Tweaks
 
+Tweaks for the [Deathworlders](https://deathworlders.com/) site.
+
 Some stuff and things for a little web practice I've been doing.
 Will contain """backups""" of stories written by people on the HFY subreddit, among other things.
 
@@ -29,7 +31,7 @@ The userscript that makes use of this data can be installed easily on my [Usersc
 - [ ] Add support for searching and/or filtering the Table of Contents
 - [ ] Fix some errors I saw once with some of the above tweaks that I haven't found again cuz I forgot which chapter they were on
 
-- Approximate Progress
+### Approximate Progress
 
 | Feature                           | Progress                             |
 | --------------------------------- | ------------------------------------ |
