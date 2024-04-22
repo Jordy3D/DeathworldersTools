@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.22.2
+// @version      0.22.3
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -92,6 +92,7 @@
 //          - Reworked the code massively to stop looking for things repeatedly
 // 0.22     - Hambone tried to differentiate between dialogue elements like I already did with conversation elements, so I had to fix that
 //          - Fixed an issue with certain elements being unreadble in dark mode
+// 0.22.3   - Hambone chose to to make a new stylistic choice at chapter 94, so I had to work around that
 //
 // ==/Changelog==
 
@@ -743,6 +744,10 @@ function setChatLogElement() {
         addCLStoSystemMessage(pTag);
         addCLStoAllCapsStrong(pTag);
         addCLSifQualified(pTag);
+
+        // fix up the chat logs marked as "stupid"
+        if (pTag.classList.contains('stupid'))
+            fixStupidChatLog(pTag);
     });
     forEachParagraph(function (pTag, pTags) {
         // this one has to be separate because it needs everything else to be done first
@@ -757,10 +762,16 @@ function setChatLogElement() {
         var firstChild = p.childNodes[0];
         if (p.innerText.toUpperCase().includes('END CHAPTER') || p.innerText.toUpperCase().includes('END OF PART')) return;
 
+        // if the first child is a strong and contains a semicolon, it's a system message
+        if (firstChild.tagName == 'STRONG' && firstChild.innerText.includes(';')) {
+            p.classList.add('chat-log-system');
+            p.classList.add('stupid');
+            return;
+        }
+
         // if the first child is a strong and the text starts with ++, add the class chat-log
         if (firstChild.tagName == 'STRONG'
             && (firstChild.innerText.startsWith('++') || firstChild.innerText.startsWith('+'))) {
-            // if the text doesn't contain "END CHAPTER", add the class "chat-log
             p.classList.add('chat-log');
         }
     }
@@ -875,6 +886,18 @@ function setChatLogElement() {
 
         if (!found)
             p.classList.remove('chat-log-system');
+    }
+
+    function fixStupidChatLog(p) {
+        // remove ++ from the text recursively, not just at the start
+        var strongTags = p.querySelectorAll('strong');
+        for (var j = 0; j < strongTags.length; j++) {
+            var strongTag = strongTags[j];
+            while (strongTag.innerText.includes('++'))
+                strongTag.innerText = strongTag.innerText.replace('++', '');
+        }
+
+        p.innerHTML = p.innerHTML.replace(/;/g, '<br>');
     }
 }
 
@@ -1990,3 +2013,7 @@ function tooltip() {
 
     return tp;
 }
+
+
+
+// THIS STRING WILL CONSUME ANY S THAT APPEARS WHEN TRYING TO SAVE
