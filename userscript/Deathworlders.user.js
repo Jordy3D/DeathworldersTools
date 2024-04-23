@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.22.3
+// @version      0.23.0
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -93,6 +93,7 @@
 // 0.22     - Hambone tried to differentiate between dialogue elements like I already did with conversation elements, so I had to fix that
 //          - Fixed an issue with certain elements being unreadble in dark mode
 // 0.22.3   - Hambone chose to to make a new stylistic choice at chapter 94, so I had to work around that
+// 0.23     - Went through and wrote some dodgy code to fix a few edge cases with style detection and generation, as a result of inconsistent styling for various elements such as chat logs, system messages, etc
 //
 // ==/Changelog==
 
@@ -198,6 +199,8 @@ function initialize() {
 
         setConversationElement();
         setChatLogElement();
+
+        specificFixes();
 
         everyParagraphShould();
     }
@@ -769,6 +772,17 @@ function setChatLogElement() {
             return;
         }
 
+        var broken_chapters = [
+            'chapter-22-warhorse',
+            'chapter-21-dragon-dreams',
+        ]
+        // if the URL contains a broken chapter, return
+        for (var i = 0; i < broken_chapters.length; i++) {
+            if (window.location.href.includes(broken_chapters[i]))
+                return;
+        }
+
+
         // if the first child is a strong and the text starts with ++, add the class chat-log
         if (firstChild.tagName == 'STRONG'
             && (firstChild.innerText.startsWith('++') || firstChild.innerText.startsWith('+'))) {
@@ -898,6 +912,189 @@ function setChatLogElement() {
         }
 
         p.innerHTML = p.innerHTML.replace(/;/g, '<br>');
+    }
+}
+
+function specificFixes() {
+
+
+    //clear empty chat-log-text spans
+    forEachQuery('.chat-log-text', function (span) {
+        if (span.innerText.trim() == '')
+            span.remove();
+    });
+
+    // if a chat-log has no chat-log-text, replace the class with chat-log-system
+    forEachQuery('.chat-log', function (chat) {
+        if (chat.querySelector('.chat-log-text') == null)
+            chat.classList.add('chat-log-system');
+    });
+
+    // remove trailing + from chat-log-name
+    forEachQuery('.chat-log-name', function (name) {
+        if (name.innerText.endsWith('+'))
+            name.innerText = name.innerText.slice(0, -1);
+    });
+
+    // if a chat-log-system element has the class .chat-log, remove it
+    forEachQuery('.chat-log.chat-log-system', function (system) {
+        if (system.classList.contains('chat-log')) {
+            // remove the class from any children strong elements
+            forEachQuery('.chat-log.chat-log-system strong', function (strong) {
+                // remove all classes from the strong element
+                strong.classList = '';
+            });
+
+            system.classList.remove('chat-log');
+        }
+    });
+
+    
+
+    // if the text contains "ASSIGNING USERNAME"
+    forEachQuery('.chat-log-system', function (system) {
+        if (system.innerText.includes('ASSIGNING USERNAME'))
+        {
+            // move all the strong tags out of their parent span and into the system message
+            var strongTags = system.querySelectorAll('strong');
+            for (var i = 0; i < strongTags.length; i++) {
+                var strongTag = strongTags[i];
+                system.appendChild(strongTag);
+
+                // remove all ++ from the strong tag
+                while (strongTag.innerText.includes('++'))
+                    strongTag.innerText = strongTag.innerText.replace('++', '');
+
+                // add a <br> after the strong tag
+                var br = document.createElement('br');
+                system.appendChild(br);
+            }
+
+            // remove the span
+            system.querySelector('span').remove();
+        }
+    });
+
+    // remove ++ from all chat-log-system elements
+    forEachQuery('.chat-log-system', function (system) {
+        while (system.innerText.includes('++'))
+            system.innerText = system.innerText.replace('++', '');
+
+        // if the contents are not in a strong tag, wrap them in one
+        if (system.querySelector('strong') == null) {
+            var strong = document.createElement('strong');
+            strong.innerText = system.innerText;
+            system.innerHTML = '';
+            system.appendChild(strong);
+        }
+    });
+
+    // if the text is "MEAT TO THE MAW!!!", it's not a chat log and should have all classes removed
+    forEachQuery('.chat-log-system', function (system) {
+        if (system.innerText == 'MEAT TO THE MAW!!!' || '+MEAT TO THE MAW!!!+') {
+            system.classList = '';
+
+            // remove the + from the text
+            while (system.innerText.includes('+'))
+                system.innerText = system.innerText.replace('+', '');
+        }
+    });
+
+    // find .chat-log and look for Joining session
+    forEachQuery('.chat-log', function (chat) {
+        if (chat.innerText.includes('++Joining session'))
+        {
+            // replace the class with chat-log-system
+            chat.classList.remove('chat-log');
+            chat.classList.add('chat-log-system');
+
+            // move all the strong tags out of their parent span and into the system message
+            var strongTags = chat.querySelectorAll('strong');
+            for (var i = 0; i < strongTags.length; i++) {
+                var strongTag = strongTags[i];
+                chat.appendChild(strongTag);
+
+                // remove all ++ from the strong tag
+                while (strongTag.innerText.includes('++'))
+                    strongTag.innerText = strongTag.innerText.replace('++', '');
+
+                // add a <br> after the strong tag
+                var br = document.createElement('br');
+                chat.appendChild(br);
+            }
+
+            // remove the span
+            chat.querySelector('span').remove();
+
+            // remove the .chat-log-name class from chat-log-name
+            chat.querySelector('.chat-log-name').classList.remove('chat-log-name');
+        }
+    });
+
+    // if the chapter is chapter-21-dragon-dreams
+    if (window.location.href.includes('chapter-21-dragon-dreams')) {
+        // find every p containing "++" or both a < and a > and add the class chat-log-system
+
+        forEachQuery('p', function (p) {
+            if (p.innerText.includes('++') || (p.innerText.includes('<') && p.innerText.includes('>')))
+            {
+                // if the p contains < and >, add the class chat-log-system
+                if (p.innerText.includes('<') && p.innerText.includes('>'))
+                {
+                    p.classList.add('chat-log-system');
+                    // remove the < and > from the text
+                    p.innerText = p.innerText.replace('<', '');
+                    p.innerText = p.innerText.replace('>', '');
+
+                    // wrap the text in a strong tag
+                    var strong = document.createElement('strong');
+                    strong.innerText = p.innerText;
+                    p.innerHTML = '';
+                    p.appendChild(strong);
+                }
+
+                // if the p contains ++, add the class chat-log
+                if (p.innerText.includes('++'))
+                {
+                    p.classList.add('chat-log');
+
+                    // grab all the text and split it at the ++:
+                    var text = p.innerText;
+                    var split = text.split('++:');
+                    var name = split[0];
+                    var message = split[1];
+
+                    // remove the ++ from the name
+                    while (name.includes('++'))
+                        name = name.replace('++', '');
+
+                    // append the name and message to the p tag
+                    p.innerHTML = `<strong class="chat-log-name">${name}</strong><span class="chat-log-text">${message}</span>`;
+                }
+            }
+        });
+    }
+
+    // if the chapter is chapter-20-exorcisms
+    if (window.location.href.includes('chapter-20-exorcisms')) {
+        // find every p with a strong containing either "System" or both a < and a > and add the class chat-log-system
+        let strongs = document.querySelectorAll('p strong');
+        for (var i = 0; i < strongs.length; i++) {
+            var strong = strongs[i];
+            if (strong.innerText.toLowerCase().includes('system') || (strong.innerText.includes('<') && strong.innerText.includes('>')))
+            {
+                strong.parentNode.classList.add('chat-log-system');
+
+                // if the strong contains < and >, add the class chat-log-system
+                if (strong.innerText.includes('<') && strong.innerText.includes('>'))
+                {
+                    strong.parentNode.classList.add('chat-log-system');
+                    // remove the < and > from the text
+                    strong.innerText = strong.innerText.replace('<', '');
+                    strong.innerText = strong.innerText.replace('>', '');
+                }
+            }
+        }
     }
 }
 
