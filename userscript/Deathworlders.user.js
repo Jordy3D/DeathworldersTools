@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.23.0
+// @version      0.23.1
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -94,6 +94,7 @@
 //          - Fixed an issue with certain elements being unreadble in dark mode
 // 0.22.3   - Hambone chose to to make a new stylistic choice at chapter 94, so I had to work around that
 // 0.23     - Went through and wrote some dodgy code to fix a few edge cases with style detection and generation, as a result of inconsistent styling for various elements such as chat logs, system messages, etc
+// 0.23.1   - Fixed another edge case with the chat log styling on Chapter 21
 //
 // ==/Changelog==
 
@@ -1038,13 +1039,32 @@ function specificFixes() {
         forEachQuery('p', function (p) {
             if (p.innerText.includes('++') || (p.innerText.includes('<') && p.innerText.includes('>')))
             {
+                let systemStrings = [
+                    'SYSTEM',
+                    'ERROR',
+                    'SYSTEM NOTIFICATION',
+                    'EMOTE CHANNEL',
+                    'WELCOME USER',
+                ];
+
+                // if the p contains any of the strings in systemStrings, set a flag
+                var isSystem = false;
+                for (var i = 0; i < systemStrings.length; i++) {
+                    if (p.innerText.toUpperCase().includes(systemStrings[i]))
+                        isSystem = true;
+                }
+
                 // if the p contains < and >, add the class chat-log-system
-                if (p.innerText.includes('<') && p.innerText.includes('>'))
+                if (p.innerText.includes('<') && p.innerText.includes('>') || isSystem)
                 {
                     p.classList.add('chat-log-system');
                     // remove the < and > from the text
                     p.innerText = p.innerText.replace('<', '');
                     p.innerText = p.innerText.replace('>', '');
+
+                    // remove the ++ from the text
+                    while (p.innerText.includes('++'))
+                        p.innerText = p.innerText.replace('++', '');
 
                     // wrap the text in a strong tag
                     var strong = document.createElement('strong');
@@ -1056,6 +1076,9 @@ function specificFixes() {
                 // if the p contains ++, add the class chat-log
                 if (p.innerText.includes('++'))
                 {
+                    // if it already has the class chat-log-system, skip
+                    if (p.classList.contains('chat-log-system')) return;
+
                     p.classList.add('chat-log');
 
                     // grab all the text and split it at the ++:
