@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.23.1
+// @version      0.23.2
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -95,6 +95,7 @@
 // 0.22.3   - Hambone chose to to make a new stylistic choice at chapter 94, so I had to work around that
 // 0.23     - Went through and wrote some dodgy code to fix a few edge cases with style detection and generation, as a result of inconsistent styling for various elements such as chat logs, system messages, etc
 // 0.23.1   - Fixed another edge case with the chat log styling on Chapter 21
+// 0.23.2   - Fixed my System Messsage detection being too broad, causing it to detect the wrong elements
 //
 // ==/Changelog==
 
@@ -1040,8 +1041,8 @@ function specificFixes() {
             if (p.innerText.includes('++') || (p.innerText.includes('<') && p.innerText.includes('>')))
             {
                 let systemStrings = [
-                    'SYSTEM',
-                    'ERROR',
+                    // 'SYSTEM',
+                    // 'ERROR',
                     'SYSTEM NOTIFICATION',
                     'EMOTE CHANNEL',
                     'WELCOME USER',
