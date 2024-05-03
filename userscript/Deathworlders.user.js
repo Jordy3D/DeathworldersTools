@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.23.2
+// @version      0.23.3
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -96,6 +96,8 @@
 // 0.23     - Went through and wrote some dodgy code to fix a few edge cases with style detection and generation, as a result of inconsistent styling for various elements such as chat logs, system messages, etc
 // 0.23.1   - Fixed another edge case with the chat log styling on Chapter 21
 // 0.23.2   - Fixed my System Messsage detection being too broad, causing it to detect the wrong elements
+// 0.23.3   - Fixed System Messages not being detected on Chapter 14
+//          - Fixed System Messages consuming section breaks
 //
 // ==/Changelog==
 
@@ -776,7 +778,7 @@ function setChatLogElement() {
 
         var broken_chapters = [
             'chapter-22-warhorse',
-            'chapter-21-dragon-dreams',
+            'chapter-21-dragon-dreams'
         ]
         // if the URL contains a broken chapter, return
         for (var i = 0; i < broken_chapters.length; i++) {
@@ -1120,6 +1122,20 @@ function specificFixes() {
             }
         }
     }
+
+    // if the chapter is chapter-14-hornets-nest
+    if (window.location.href.includes('chapter-14-hornets-nest')) {
+        // find every p with a strong containing "System" and add the class chat-log-system
+        forEachQuery('p strong', function (strong) {
+            if (strong.innerText.toLowerCase().includes('system'))
+                strong.parentNode.classList.add('chat-log-system');
+        });
+
+        // remove every : in every chat-log-text
+        forEachQuery('.chat-log-text', function (span) {
+            span.innerText = span.innerText.replace(':', '');
+        });
+    }
 }
 
 function forceBreaks(paragraph) {
@@ -1422,7 +1438,7 @@ function loadCSS() {
                         .chat-log-system:has(+.chat-log-system) { border-bottom: none; }
                         .chat-log-system +.chat-log-system { border-top: none; }
 
-                        .chat-log-system + hr { display: none; }
+                        /*.chat-log-system + hr { display: none; } */
 
                         .chat-log,
                         .chat-log-text, .chat-log-text em
