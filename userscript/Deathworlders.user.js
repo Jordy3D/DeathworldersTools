@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Deathworlders Tweaks
 // @namespace    http://tampermonkey.net/
-// @version      0.23.3
+// @version      0.23.4
 // @description  Modifications to the Deathworlders web novel
 // @author       Bane
 // @match        https://deathworlders.com/*
@@ -98,7 +98,8 @@
 // 0.23.2   - Fixed my System Messsage detection being too broad, causing it to detect the wrong elements
 // 0.23.3   - Fixed System Messages not being detected on Chapter 14
 //          - Fixed System Messages consuming section breaks
-//
+// 0.23.4   - Fixed a bug with System Messages being wiped thanks to me being a dumb
+// 
 // ==/Changelog==
 
 // ===== Variables =====
@@ -781,11 +782,8 @@ function setChatLogElement() {
             'chapter-21-dragon-dreams'
         ]
         // if the URL contains a broken chapter, return
-        for (var i = 0; i < broken_chapters.length; i++) {
-            if (window.location.href.includes(broken_chapters[i]))
-                return;
-        }
-
+        for (var i = 0; i < broken_chapters.length; i++)
+            if (window.location.href.includes(broken_chapters[i])) return;
 
         // if the first child is a strong and the text starts with ++, add the class chat-log
         if (firstChild.tagName == 'STRONG'
@@ -829,9 +827,11 @@ function setChatLogElement() {
 
         // get the first child
         var firstChild = p.childNodes[0];
+        
         // if the first child is a strong that starts with SYSTEM or ERROR, add the class chat-log-system
-        if (firstChild.tagName == 'STRONG' && (firstChild.innerText.startsWith('SYSTEM') || firstChild.innerText.startsWith('ERROR')))
+        if (firstChild.tagName == 'STRONG' && (firstChild.innerText.startsWith('SYSTEM') || firstChild.innerText.startsWith('ERROR'))) {
             p.classList.add('chat-log-system');
+        }
 
         for (var j = 0; j < strongTags.length; j++) {
             var strongTag = strongTags[j];
@@ -953,12 +953,11 @@ function specificFixes() {
         }
     });
 
-    
+
 
     // if the text contains "ASSIGNING USERNAME"
     forEachQuery('.chat-log-system', function (system) {
-        if (system.innerText.includes('ASSIGNING USERNAME'))
-        {
+        if (system.innerText.includes('ASSIGNING USERNAME')) {
             // move all the strong tags out of their parent span and into the system message
             var strongTags = system.querySelectorAll('strong');
             for (var i = 0; i < strongTags.length; i++) {
@@ -995,7 +994,7 @@ function specificFixes() {
 
     // if the text is "MEAT TO THE MAW!!!", it's not a chat log and should have all classes removed
     forEachQuery('.chat-log-system', function (system) {
-        if (system.innerText == 'MEAT TO THE MAW!!!' || '+MEAT TO THE MAW!!!+') {
+        if (system.innerText == 'MEAT TO THE MAW!!!' || system.innerText ==  '+MEAT TO THE MAW!!!+') {
             system.classList = '';
 
             // remove the + from the text
@@ -1006,8 +1005,7 @@ function specificFixes() {
 
     // find .chat-log and look for Joining session
     forEachQuery('.chat-log', function (chat) {
-        if (chat.innerText.includes('++Joining session'))
-        {
+        if (chat.innerText.includes('++Joining session')) {
             // replace the class with chat-log-system
             chat.classList.remove('chat-log');
             chat.classList.add('chat-log-system');
@@ -1040,8 +1038,7 @@ function specificFixes() {
         // find every p containing "++" or both a < and a > and add the class chat-log-system
 
         forEachQuery('p', function (p) {
-            if (p.innerText.includes('++') || (p.innerText.includes('<') && p.innerText.includes('>')))
-            {
+            if (p.innerText.includes('++') || (p.innerText.includes('<') && p.innerText.includes('>'))) {
                 let systemStrings = [
                     // 'SYSTEM',
                     // 'ERROR',
@@ -1058,8 +1055,7 @@ function specificFixes() {
                 }
 
                 // if the p contains < and >, add the class chat-log-system
-                if (p.innerText.includes('<') && p.innerText.includes('>') || isSystem)
-                {
+                if (p.innerText.includes('<') && p.innerText.includes('>') || isSystem) {
                     p.classList.add('chat-log-system');
                     // remove the < and > from the text
                     p.innerText = p.innerText.replace('<', '');
@@ -1077,8 +1073,7 @@ function specificFixes() {
                 }
 
                 // if the p contains ++, add the class chat-log
-                if (p.innerText.includes('++'))
-                {
+                if (p.innerText.includes('++')) {
                     // if it already has the class chat-log-system, skip
                     if (p.classList.contains('chat-log-system')) return;
 
@@ -1107,13 +1102,11 @@ function specificFixes() {
         let strongs = document.querySelectorAll('p strong');
         for (var i = 0; i < strongs.length; i++) {
             var strong = strongs[i];
-            if (strong.innerText.toLowerCase().includes('system') || (strong.innerText.includes('<') && strong.innerText.includes('>')))
-            {
+            if (strong.innerText.toLowerCase().includes('system') || (strong.innerText.includes('<') && strong.innerText.includes('>'))) {
                 strong.parentNode.classList.add('chat-log-system');
 
                 // if the strong contains < and >, add the class chat-log-system
-                if (strong.innerText.includes('<') && strong.innerText.includes('>'))
-                {
+                if (strong.innerText.includes('<') && strong.innerText.includes('>')) {
                     strong.parentNode.classList.add('chat-log-system');
                     // remove the < and > from the text
                     strong.innerText = strong.innerText.replace('<', '');
